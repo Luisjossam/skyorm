@@ -1,23 +1,38 @@
 {
   "name": "skyorm",
   "version": "1.0.0",
-  "main": "index.js",
+  "description": "ORM for NodeJS with support for SQL databases",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "watch": "tsc --watch",
+    "test": "jest"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "keywords": [
+    "skyorm",
+    "orm",
+    "database",
+    "mysql",
+    "postgresql",
+    "sqlite",
+    "nodejs"
+  ],
+  "author": "Luis Martinez",
+  "license": "MIT",
   "dependencies": {
     "@types/node": "^22.14.0",
     "mysql2": "^3.14.0",
     "pg": "^8.14.1",
+    "pluralize": "^8.0.0",
+    "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.2"
   },
   "devDependencies": {
+    "@types/pg": "^8.11.11",
+    "@types/pluralize": "^0.0.33",
     "@typescript-eslint/eslint-plugin": "^8.29.0",
     "@typescript-eslint/parser": "^8.29.0",
     "eslint": "^9.23.0",
