@@ -29,3 +29,11 @@ export interface IRelations {
   relatedAlias: string[];
   type: string;
 }
+export interface IPaginateData {
+  data: any[];
+  total: number;
+  perPage: number;
+  currentPage: number;
+  lastPage: number;
+  count: number;
+}

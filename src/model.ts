@@ -1,5 +1,5 @@
 import Database from "./database";
-import { IRelations } from "./interfaces/interfaces";
+import { IPaginateData, IRelations } from "./interfaces/interfaces";
 import pluralize from "pluralize";
 const validOperators = ["=", ">", "<", ">=", "<=", "LIKE", "IN", "IS", "IS NOT"];
 class QueryBuilder {
@@ -60,6 +60,34 @@ class QueryBuilder {
    */
   async get(columns: string[] = ["*"]) {
     return this.model.get.call(this.model, columns);
+  }
+  /**
+   * Paginate query results.
+   *
+   * This method fetches the database records corresponding to the requested page,
+   * with a specified number of records per page. It also applies any previously set `where`
+   * conditions, relations (`with`), and executes the necessary queries for pagination.
+   *
+   * @param {number} current_page - The current page number.
+   * @param {number} per_page - The number of records to be retrieved per page.
+   * @param {string[]} columns - An array of column names to retrieve. Defaults to ["*"] if not provided.
+   * @returns {Promise<IPaginateData>} - A promise that resolves to an object containing the paginated data.
+   *
+   * The returned object includes:
+   * - `data`: The current page's data (an array of instances).
+   * - `total`: The total number of records in the database.
+   * - `perPage`: The number of records per page.
+   * - `currentPage`: The current page number.
+   * - `lastPage`: The last available page number.
+   * - `count`: The number of records returned on the current page.
+   *
+   * Example usage:
+   * ```ts
+   * const products = await ProductModel.paginate(1, 10);
+   * ```
+   */
+  async paginate(current_page: number, per_page: number, columns: string[] = ["*"]) {
+    return this.model.paginate.call(this.model, current_page, per_page, columns);
   }
 }
 class Model {
@@ -566,6 +594,140 @@ class Model {
     const rows = await connection.query(sql, justValues ?? []);
     this.whereConditions = {};
     return rows.map((row: any) => row[value]);
+  }
+  /**
+   * Paginate query results.
+   *
+   * This method fetches the database records corresponding to the requested page,
+   * with a specified number of records per page. It also applies any previously set `where`
+   * conditions, relations (`with`), and executes the necessary queries for pagination.
+   *
+   * @param {number} current_page - The current page number.
+   * @param {number} per_page - The number of records to be retrieved per page.
+   * @param {string[]} columns - An array of column names to retrieve. Defaults to ["*"] if not provided.
+   * @returns {Promise<IPaginateData>} - A promise that resolves to an object containing the paginated data.
+   *
+   * The returned object includes:
+   * - `data`: The current page's data (an array of instances).
+   * - `total`: The total number of records in the database.
+   * - `perPage`: The number of records per page.
+   * - `currentPage`: The current page number.
+   * - `lastPage`: The last available page number.
+   * - `count`: The number of records returned on the current page.
+   *
+   * Example usage:
+   * ```ts
+   * const products = await ProductModel.paginate(1, 10);
+   * ```
+   */
+  static async paginate(current_page: number, per_page: number, columns: string[] = ["*"]): Promise<IPaginateData> {
+    try {
+      const table = this.getTable();
+      const connection = Database.getConnection();
+      let whereClause = "";
+      let justValues = null;
+      if (this.whereConditions) {
+        const keys = Object.keys(this.whereConditions);
+        const values = Object.values(this.whereConditions);
+        whereClause = keys
+          .map((key) => {
+            const value = this.whereConditions[key];
+
+            if (Array.isArray(value) && value.length === 2) {
+              let [operator, val] = value;
+              if (!validOperators.includes(operator.toUpperCase())) {
+                throw new Error(`Operador no válido: ${operator}`);
+              }
+
+              if (operator.toUpperCase() === "IN" && Array.isArray(val)) {
+                values.push(...val);
+                return `${key} IN (${val.map(() => "?").join(", ")})`;
+              }
+
+              if (operator.toUpperCase().startsWith("IS")) {
+                return `${key} ${operator} ${val === null ? "NULL" : "?"}`;
+              }
+
+              values.push(val);
+              return `${key} ${operator} ?`;
+            }
+
+            values.push(value);
+            return `${key} = ?`;
+          })
+          .join(" AND ");
+        justValues = this.getJustValues(this.whereConditions);
+      }
+      let sql = `SELECT `;
+      let columnAliases: string[] = [];
+
+      columns.forEach((column) => {
+        if (column === "*") {
+          columnAliases.push("*");
+        } else {
+          columnAliases.push(`${table}.${column}`);
+        }
+      });
+
+      sql += `${columnAliases.map((column) => column)}`;
+      if (this.selectedRelations?.length) {
+        this.selectedRelations.forEach(({ relatedTable, foreignKey, primaryKey, relatedAlias, singularName }) => {
+          relatedAlias.map((i) => {
+            sql += `, ${relatedTable}.${i} AS ${singularName}_${i}`;
+          });
+          sql += ` FROM ${table}`;
+          sql += ` LEFT JOIN ${relatedTable} ON ${relatedTable}.${primaryKey} = ${table}.${foreignKey}`;
+        });
+      }
+      if (!this.selectedRelations?.length) sql += ` FROM ${table}`;
+      if (whereClause !== "") sql += ` WHERE ${whereClause}`;
+      const offset = (current_page - 1) * per_page;
+      sql += ` LIMIT ?, ?`;
+
+      const rows = await connection.query(
+        sql,
+        justValues ? [...justValues, offset.toString(), per_page.toString()] : [offset.toString(), per_page.toString()],
+      );
+      const instances = rows.map((row: any) => {
+        const instance = new this(row);
+        if (this.selectedRelations?.length) {
+          this.selectedRelations.forEach((relation: IRelations) => {
+            if (relation.type === "belongsTo") {
+              instance[relation.singularName] = {};
+              if (Array.isArray(relation.relatedAlias)) {
+                relation.relatedAlias.forEach((alias) => {
+                  const column_alias = `${relation.singularName}_${alias}`;
+                  if (row[column_alias]) {
+                    instance[relation.singularName][alias] = row[column_alias];
+                    delete instance[column_alias];
+                  }
+                });
+              }
+            }
+          });
+        }
+        return instance;
+      });
+      let sqlCount = `SELECT COUNT(*) as total FROM ${table}`;
+      if (whereClause !== "") sqlCount += ` WHERE ${whereClause}`;
+      const totalRows = await connection.query(sqlCount, justValues ?? []);
+      const total = totalRows[0].total;
+      const lastPage = Math.ceil(total / per_page);
+
+      this.selectedRelations = [];
+      this.whereConditions = {};
+
+      return {
+        data: instances,
+        total,
+        perPage: per_page,
+        currentPage: current_page,
+        lastPage,
+        count: rows.length,
+      };
+    } catch (error) {
+      throw error;
+    }
   }
   private static getJustValues(where_conditions: Record<string, any>) {
     const keys = Object.keys(where_conditions);
