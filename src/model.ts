@@ -89,6 +89,9 @@ class QueryBuilder {
   async paginate(current_page: number, per_page: number, columns: string[] = ["*"]) {
     return this.model.paginate.call(this.model, current_page, per_page, columns);
   }
+  async orderBy(value: string, sort: "asc" | "desc", columns: string[] = ["*"]) {
+    return this.model.orderBy(value, sort, columns);
+  }
 }
 class Model {
   static table: string;
@@ -728,6 +731,94 @@ class Model {
     } catch (error) {
       throw error;
     }
+  }
+  static async orderBy(value: string, sort: "asc" | "desc", columns: string[] = ["*"]) {
+    const table = this.getTable();
+    const connection = Database.getConnection();
+    let whereClause = "";
+    let justValues = null;
+    if (this.whereConditions) {
+      const keys = Object.keys(this.whereConditions);
+      const values = Object.values(this.whereConditions);
+      whereClause = keys
+        .map((key) => {
+          const value = this.whereConditions[key];
+
+          if (Array.isArray(value) && value.length === 2) {
+            let [operator, val] = value;
+            if (!validOperators.includes(operator.toUpperCase())) {
+              throw new Error(`Operador no válido: ${operator}`);
+            }
+
+            if (operator.toUpperCase() === "IN" && Array.isArray(val)) {
+              values.push(...val);
+              return `${key} IN (${val.map(() => "?").join(", ")})`;
+            }
+
+            if (operator.toUpperCase().startsWith("IS")) {
+              return `${key} ${operator} ${val === null ? "NULL" : "?"}`;
+            }
+
+            values.push(val);
+            return `${key} ${operator} ?`;
+          }
+
+          values.push(value);
+          return `${key} = ?`;
+        })
+        .join(" AND ");
+      justValues = this.getJustValues(this.whereConditions);
+    }
+    let sql = `SELECT `;
+    let columnAliases: string[] = [];
+
+    columns.forEach((column) => {
+      if (column === "*") {
+        columnAliases.push("*");
+      } else {
+        columnAliases.push(`${table}.${column}`);
+      }
+    });
+
+    sql += `${columnAliases.map((column) => column)}`;
+    if (this.selectedRelations?.length) {
+      this.selectedRelations.forEach(({ relatedTable, foreignKey, primaryKey, relatedAlias, singularName }) => {
+        relatedAlias.map((i) => {
+          sql += `, ${relatedTable}.${i} AS ${singularName}_${i}`;
+        });
+        sql += ` FROM ${table}`;
+        sql += ` LEFT JOIN ${relatedTable} ON ${relatedTable}.${primaryKey} = ${table}.${foreignKey}`;
+      });
+    }
+    if (!this.selectedRelations?.length) sql += ` FROM ${table}`;
+    if (whereClause !== "") sql += ` WHERE ${whereClause}`;
+
+    sql += ` ORDER BY ${value} ${sort}`;
+
+    const rows = await connection.query(sql, justValues ?? []);
+    const instances = rows.map((row: any) => {
+      const instance = new this(row);
+      if (this.selectedRelations?.length) {
+        this.selectedRelations.forEach((relation: IRelations) => {
+          if (relation.type === "belongsTo") {
+            instance[relation.singularName] = {};
+            if (Array.isArray(relation.relatedAlias)) {
+              relation.relatedAlias.forEach((alias) => {
+                const column_alias = `${relation.singularName}_${alias}`;
+                if (row[column_alias]) {
+                  instance[relation.singularName][alias] = row[column_alias];
+                  delete instance[column_alias];
+                }
+              });
+            }
+          }
+        });
+      }
+      return instance;
+    });
+    this.selectedRelations = [];
+    this.whereConditions = {};
+    return instances;
   }
   private static getJustValues(where_conditions: Record<string, any>) {
     const keys = Object.keys(where_conditions);
