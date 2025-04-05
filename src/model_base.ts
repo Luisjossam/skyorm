@@ -1,18 +1,14 @@
 import Database from "./database";
 import { IPaginateData, IRelations } from "./interfaces/interfaces";
 import pluralize from "pluralize";
-import { WithoutWhere, WithWhere } from "./interfaces/types";
-import QueryBuilder from "./queries/QueryBuilderWithWhere";
-import QueryBuilderWithWhere from "./queries/QueryBuilderWithWhere";
-import QueryBuilderWithoutWhere from "./queries/QueryBuilderWithoutWhere";
 const validOperators = ["=", ">", "<", ">=", "<=", "LIKE", "IN", "IS", "IS NOT"];
 interface IOptions {
   relations?: IRelations[];
   order_by: { column: string; sort: string };
 }
 class ModelBase {
-  static table: string;
-  static primaryKey: string = "id";
+  static readonly table: string;
+  static readonly primaryKey: string = "id";
   public selectedRelations: IRelations[] = [];
   public whereConditions: Record<string, any> = {};
   static [key: string]: any;
@@ -94,11 +90,11 @@ class ModelBase {
    * // Retrieve products with a price greater than or equal to 100
    * const query = ProductModel.where({ price: [">=", 100] }).findOne();
    */
-  static where(conditions: Record<string, any>) {
+  /* static where(conditions: Record<string, any>) {
     const builder = new QueryBuilderWithWhere(this);
     this.whereConditions = conditions;
     return builder;
-  }
+  } */
 
   /**
    * Retrieves a single record by its primary key.
@@ -451,8 +447,8 @@ class ModelBase {
         lastPage,
         count: rows.length,
       };
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      throw new Error("Error in pagination: " + error.message);
     }
   }
   private static getJustValues(where_conditions: Record<string, any>) {
@@ -497,8 +493,8 @@ class ModelBase {
           return `${key} = ?`;
         })
         .join(" AND ");
-    } catch (error) {
-      throw error;
+    } catch (error: any) {
+      throw new Error("Error setting WHERE conditions: " + error.message);
     }
   }
   private static resetValues() {

@@ -32,5 +32,8 @@ class QueryBuilderOrderBy {
   valuesOf(column: string) {
     return this.model.mb_valuesOf(column, { order_by: this.order_by });
   }
+  paginate(current_page: number, per_page: number, columns: string[] = ["*"]) {
+    return this.model.mb_paginate(current_page, per_page, columns, { order_by: this.order_by, relations: this.relations });
+  }
 }
 export default QueryBuilderOrderBy;
