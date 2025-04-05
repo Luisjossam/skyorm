@@ -1,4 +1,4 @@
-import Model from "../model";
+import ModelBase from "../model_base";
 
 export interface IDatabaseConfig {
   driver: "mysql" | "sqlite" | "postgres";
@@ -36,4 +36,8 @@ export interface IPaginateData {
   currentPage: number;
   lastPage: number;
   count: number;
+}
+export interface IQueryBuilderBase {
+  orderBy(value: string, sort: "asc" | "desc"): this;
+  get(columns?: string[]): Promise<ModelBase[]>;
 }
