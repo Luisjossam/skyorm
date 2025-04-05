@@ -4,6 +4,7 @@ import pluralize from "pluralize";
 const validOperators = ["=", ">", "<", ">=", "<=", "LIKE", "IN", "IS", "IS NOT"];
 interface IOptions {
   relations?: IRelations[];
+  conditions?: Record<string, any>;
   order_by: { column: string; sort: string };
 }
 class ModelBase {
@@ -285,9 +286,10 @@ class ModelBase {
 
     let whereClause = null;
     let justValues = null;
-    if (this.whereConditions) {
-      whereClause = this.setWhereConditions(this.whereConditions);
-      justValues = this.getJustValues(this.whereConditions);
+    const conditions = options.conditions ? options.conditions : null;
+    if (conditions) {
+      whereClause = this.setWhereConditions(conditions);
+      justValues = this.getJustValues(conditions);
     }
     let columnAliases: string[] = [];
 

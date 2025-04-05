@@ -1,5 +1,6 @@
 import ModelBase from "./model_base";
 import QueryBuilderOrderBy from "./queries/QueryBuilderOrderBy";
+import QueryBuilderWhere from "./queries/QueryBuilderWhere";
 import QueryBuilderWith from "./queries/QueryBuilderWith";
 
 class Model extends ModelBase {
@@ -32,6 +33,9 @@ class Model extends ModelBase {
   }
   static orderBy(column: string, sort: "asc" | "desc") {
     return new QueryBuilderOrderBy(this, column, sort);
+  }
+  static where(conditions: Record<string, any>) {
+    return new QueryBuilderWhere(this, conditions);
   }
   static all(columns: string[] = ["*"]) {
     return super.mb_all(columns, { order_by: this.order_by });
