@@ -7,15 +7,15 @@ interface IOptions {
   conditions?: Record<string, any>;
   order_by: { column: string; sort: string };
 }
-class ModelBase {
-  static readonly table: string;
+export abstract class ModelBase {
+  protected table: string;
   static readonly primaryKey: string = "id";
   public selectedRelations: IRelations[] = [];
   public whereConditions: Record<string, any> = {};
   static [key: string]: any;
 
-  constructor(data: Record<string, any> = {}) {
-    Object.assign(this, data);
+  constructor(table: string) {
+    this.table = table;
   }
   /**
    * Retrieves the name of the table associated with the model.
@@ -81,21 +81,17 @@ class ModelBase {
       relatedAlias: columns,
     };
   }
-  /**
-   * Applies filtering conditions to the query and returns a QueryBuilder instance.
-   *
-   * @param conditions - An object containing filtering conditions (column: value).
-   * @returns {QueryBuilder} - A QueryBuilder instance with the applied conditions.
-   *
-   * @example
-   * // Retrieve products with a price greater than or equal to 100
-   * const query = ProductModel.where({ price: [">=", 100] }).findOne();
-   */
-  /* static where(conditions: Record<string, any>) {
-    const builder = new QueryBuilderWithWhere(this);
-    this.whereConditions = conditions;
-    return builder;
-  } */
+  static __mb_with(...relations: string[]) {
+    const relations_array: IRelations[] = [];
+    relations.forEach((relationName) => {
+      const relationMethod = this[relationName];
+      if (typeof relationMethod === "function") {
+        const relation = relationMethod.call(this);
+        relations_array.push(relation);
+      }
+    });
+    return relations_array;
+  }
 
   /**
    * Retrieves a single record by its primary key.
@@ -111,7 +107,7 @@ class ModelBase {
    * // Find a user by ID and retrieve only specific columns
    * const user = await UserModel.find(10, ["name", "email"]);
    */
-  static async mb_find(primary_key: number | string, columns: string[], options: Omit<IOptions, "order_by">) {
+  static async __mb_find(primary_key: number | string, columns: string[], options: Omit<IOptions, "order_by">) {
     const table = this.getTable();
     const connection = Database.getConnection();
     let columnAliases: string[] = [];
@@ -138,8 +134,9 @@ class ModelBase {
     sql += ` WHERE ${table}.${this.primaryKey} = ? LIMIT 1`;
 
     const rows = await connection.query(sql, [primary_key]);
-    let instance_relation = rows.length ? new this(rows[0]) : null;
+    let instance_relation = rows.length ? Object.create(this.prototype) : null;
     if (!instance_relation) return null;
+    Object.assign(instance_relation, rows[0]);
     if (options.relations?.length) {
       options.relations.forEach((relation: IRelations) => {
         instance_relation = this.setRelations(relation, instance_relation, rows[0]);
@@ -160,15 +157,16 @@ class ModelBase {
    * // Find a product with a price greater than 500 and retrieve only name and price columns
    * const product = await ProductModel.where({ price: [">", 500] }).findOne(["name", "price"]);
    */
-  static async mb_getOne(columns: string[], options: Omit<IOptions, "order_by">) {
+  static async __mb_getOne(columns: string[], options: Omit<IOptions, "order_by">) {
     const table = this.getTable();
     const connection = Database.getConnection();
 
     let whereClause = null;
     let justValues = null;
-    if (this.whereConditions) {
-      whereClause = this.setWhereConditions(this.whereConditions);
-      justValues = this.getJustValues(this.whereConditions);
+    const conditions = options.conditions ? options.conditions : null;
+    if (conditions) {
+      whereClause = this.setWhereConditions(conditions);
+      justValues = this.getJustValues(conditions);
     }
     let columnAliases: string[] = [];
 
@@ -194,11 +192,13 @@ class ModelBase {
 
     if (whereClause) sql += ` WHERE ${whereClause}`;
     sql += ` LIMIT 1`;
+    console.log(sql);
 
     const rows = await connection.query(sql, justValues ?? []);
 
-    let instance_relation = rows.length ? new this(rows[0]) : null;
+    let instance_relation = rows.length ? Object.create(this.prototype) : null;
     if (!instance_relation) return null;
+    Object.assign(instance_relation, rows[0]);
     if (options.relations?.length) {
       options.relations.forEach((relation: IRelations) => {
         instance_relation = this.setRelations(relation, instance_relation, rows[0]);
@@ -219,7 +219,7 @@ class ModelBase {
    * // Retrieve all products with only the 'name' and 'price' columns
    * const products = await ProductModel.all(["name", "price"]);
    */
-  static async mb_all(columns: string[], options: IOptions) {
+  static async __mb_all(columns: string[], options: IOptions) {
     if (this.whereConditions && Object.keys(this.whereConditions).length > 0) {
       throw new Error("Cannot use 'all()' with where conditions. Use 'get()' instead.");
     }
@@ -248,20 +248,19 @@ class ModelBase {
     }
     if (!options.relations?.length) sql += ` FROM ${table}`;
     sql += ` ORDER BY ${table}.${options.order_by.column} ${options.order_by.sort}`;
-    console.log(sql);
-
     const rows = await connection.query(sql);
 
     const instances = rows.map((row: any) => {
-      let instance = new this(row);
+      let instance = Object.create(this.prototype);
+      Object.assign(instance, row);
       if (options.relations?.length) {
         options.relations.forEach((relation: IRelations) => {
-          instance = this.setRelations(relation, instance, row);
+          row = this.setRelations(relation, instance, row);
         });
       }
       return instance;
     });
-    this.resetValues();
+
     return instances;
   }
   /**
@@ -280,7 +279,7 @@ class ModelBase {
    * // Retrieve records with a where condition (e.g., records where price is less than 500)
    * const filteredProducts = await ProductModel.where({ price: ["<", 500] }).get(["name", "price"]);
    */
-  static async mb_get(columns: string[], options: IOptions) {
+  static async __mb_get(columns: string[], options: IOptions) {
     const table = this.getTable();
     const connection = Database.getConnection();
 
@@ -315,19 +314,17 @@ class ModelBase {
 
     if (whereClause) sql += ` WHERE ${whereClause}`;
     sql += ` ORDER BY ${table}.${options.order_by.column} ${options.order_by.sort}`;
-    console.log(sql);
-
     const rows = await connection.query(sql, justValues ?? []);
     const instances = rows.map((row: any) => {
-      let instance = new this(row);
+      let instance = Object.create(this.prototype);
+      Object.assign(instance, row);
       if (options.relations?.length) {
         options.relations.forEach((relation: IRelations) => {
-          instance = this.setRelations(relation, instance, row);
+          row = this.setRelations(relation, instance, row);
         });
       }
       return instance;
     });
-    this.resetValues();
     return instances;
   }
   /**
@@ -343,7 +340,7 @@ class ModelBase {
    * // Retrieve all product names where price is greater than 100
    * const productNames = await ProductModel.where({ price: [">", 100] }).valuesOf("name");
    */
-  static async mb_valuesOf(value: string, options: IOptions): Promise<string[] | number[]> {
+  static async __mb_valuesOf(value: string, options: IOptions): Promise<string[] | number[]> {
     const table = this.getTable();
     const connection = Database.getConnection();
     let whereClause = null;
@@ -384,15 +381,16 @@ class ModelBase {
    * const products = await ProductModel.paginate(1, 10);
    * ```
    */
-  static async mb_paginate(current_page: number, per_page: number, columns: string[], options: IOptions): Promise<IPaginateData> {
+  static async __mb_paginate(current_page: number, per_page: number, columns: string[], options: IOptions): Promise<IPaginateData> {
     try {
       const table = this.getTable();
       const connection = Database.getConnection();
       let whereClause = null;
       let justValues = null;
-      if (this.whereConditions) {
-        whereClause = this.setWhereConditions(this.whereConditions);
-        justValues = this.getJustValues(this.whereConditions);
+      const conditions = options.conditions ? options.conditions : null;
+      if (conditions) {
+        whereClause = this.setWhereConditions(conditions);
+        justValues = this.getJustValues(conditions);
       }
       let sql = `SELECT `;
       let columnAliases: string[] = [];
@@ -420,17 +418,17 @@ class ModelBase {
       const offset = (current_page - 1) * per_page;
       sql += ` ORDER BY ${table}.${options.order_by.column} ${options.order_by.sort}`;
       sql += ` LIMIT ?, ?`;
-      console.log(sql);
 
       const rows = await connection.query(
         sql,
         justValues ? [...justValues, offset.toString(), per_page.toString()] : [offset.toString(), per_page.toString()],
       );
       const instances = rows.map((row: any) => {
-        let instance = new this(row);
+        let instance = Object.create(this.prototype);
+        Object.assign(instance, row);
         if (options.relations?.length) {
           options.relations.forEach((relation: IRelations) => {
-            instance = this.setRelations(relation, instance, row);
+            row = this.setRelations(relation, instance, row);
           });
         }
         return instance;
