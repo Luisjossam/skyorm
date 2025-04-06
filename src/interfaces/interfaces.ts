@@ -41,3 +41,17 @@ export interface IQueryBuilderBase {
   orderBy(value: string, sort: "asc" | "desc"): this;
   get(columns?: string[]): Promise<ModelBase[]>;
 }
+export interface IQueryBuilder {
+  where(conditions: Record<string, any>): IQueryBuilderWhere;
+  all(columns?: string[]): Promise<any>;
+  get(columns?: string[]): Promise<any>;
+  getOne(columns?: string[]): Promise<any>;
+  find(primary_key: number | string, columns?: string[]): Promise<any>;
+  paginate(current_page: number, per_page: number, columns?: string[]): Promise<any>;
+  with(...relations: string[]): IQueryBuilderWith;
+  orderBy(column: string, sort: "asc" | "desc"): IQueryBuilderOrderBy;
+  valuesOf(column: string): Promise<any>;
+}
+export interface IQueryBuilderWhere extends Omit<IQueryBuilder, "all" | "where" | "find"> {}
+export interface IQueryBuilderOrderBy extends Omit<IQueryBuilder, "orderBy" | "find" | "getOne"> {}
+export interface IQueryBuilderWith extends Omit<IQueryBuilder, "valuesOf"> {}

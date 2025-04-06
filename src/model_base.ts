@@ -81,6 +81,20 @@ export abstract class ModelBase {
       relatedAlias: columns,
     };
   }
+  /**
+   * @internal
+   * Processes a list of relation method names defined in the model and returns an array of `IRelations` objects.
+   *
+   * This method locates and executes each relation method (e.g., `category()`, `user()`) defined in the model.
+   * Each of these methods is expected to return a valid `IRelation` object.
+   *
+   * @param {...string[]} relations - Names of relation methods defined on the model.
+   * @returns {IRelations[]} An array of `IRelations` objects built from the given relation methods.
+   *
+   * @example
+   * // Assuming the model has a method named 'category':
+   * Product.__mb_with("category");
+   */
   static __mb_with(...relations: string[]) {
     const relations_array: IRelations[] = [];
     relations.forEach((relationName) => {
@@ -92,20 +106,29 @@ export abstract class ModelBase {
     });
     return relations_array;
   }
-
   /**
-   * Retrieves a single record by its primary key.
+   * @internal
+   * Finds a single model instance by its primary key and optionally includes specified relations.
    *
-   * @param primary_key - The value of the primary key to search for.
-   * @param columns - An array of column names to retrieve (default is all columns "*").
-   * @returns {Promise<Model | null>} - A single instance of the model or null if not found.
+   * This method builds a raw SQL query to fetch the row from the database, along with any
+   * defined relations using `LEFT JOIN`. It returns an instance of the model with all the
+   * selected data attached and relation data populated if requested.
+   *
+   * @param {number | string} primary_key - The primary key value of the record to find.
+   * @param {string[]} columns - List of columns to select. Use ['*'] to select all columns from the main table.
+   * @param {Omit<IOptions, "order_by">} options - Additional options, such as `relations`, but excludes `order_by`.
+   *
+   * @returns {Promise<any>} A Promise resolving to a single instance of the model, or `null` if not found.
    *
    * @example
-   * // Find a product by its ID and retrieve all columns
-   * const product = await ProductModel.find(1);
+   * // Basic usage without relations
+   * const user = await User.__mb_find(1, ["name", "email"], {});
    *
-   * // Find a user by ID and retrieve only specific columns
-   * const user = await UserModel.find(10, ["name", "email"]);
+   * @example
+   * // With relations
+   * const product = await Product.__mb_find(2, ["*"], {
+   *   relations: Product.__mb_with("category")
+   * });
    */
   static async __mb_find(primary_key: number | string, columns: string[], options: Omit<IOptions, "order_by">) {
     const table = this.getTable();
@@ -145,17 +168,30 @@ export abstract class ModelBase {
     return instance_relation;
   }
   /**
-   * Retrieves a single record based on the specified conditions.
+   * @internal
+   * Retrieves a single model instance that matches the given `where` conditions,
+   * with optional eager loading of specified relations.
    *
-   * @param columns - An array of column names to retrieve (default is all columns "*").
-   * @returns {Promise<Model | null>} - A single instance of the model or null if not found.
+   * This method constructs a raw SQL query with optional `LEFT JOIN`s and a `WHERE` clause
+   * based on the given conditions. It returns the first matching row as an instance of the model.
+   *
+   * @param {string[]} columns - List of columns to select. Use ['*'] to select all columns from the main table.
+   * @param {Omit<IOptions, "order_by">} options - Query options such as `conditions` and `relations`. Excludes `order_by`.
+   *
+   * @returns {Promise<any>} A Promise that resolves to a single instance of the model or `null` if no match is found.
    *
    * @example
-   * // Find a single user where email = 'test@example.com'
-   * const user = await UserModel.where({ email: "test@example.com" }).findOne();
+   * // Get a single user by email
+   * const user = await User.__mb_getOne(["id", "name"], {
+   *   conditions: { email: "test@example.com" }
+   * });
    *
-   * // Find a product with a price greater than 500 and retrieve only name and price columns
-   * const product = await ProductModel.where({ price: [">", 500] }).findOne(["name", "price"]);
+   * @example
+   * // With related model data (e.g., category)
+   * const product = await Product.__mb_getOne(["*"], {
+   *   conditions: { slug: "product-slug" },
+   *   relations: Product.__mb_with("category")
+   * });
    */
   static async __mb_getOne(columns: string[], options: Omit<IOptions, "order_by">) {
     const table = this.getTable();
@@ -207,17 +243,34 @@ export abstract class ModelBase {
     return instance_relation;
   }
   /**
-   * Retrieves all records from the database, applying optional column selection and handling relationships.
+   * @internal
+   * Retrieves all records from the table, including optional eager-loaded relations.
    *
-   * @param columns - An array of column names to retrieve (default is all columns "*").
-   * @returns {Promise<Model[]>} - An array of model instances corresponding to the retrieved records.
+   * This method does not support `WHERE` conditions. If `whereConditions` are set,
+   * an error is thrown to enforce the use of `get()` instead.
+   *
+   * It dynamically builds the SQL `SELECT` statement and applies `LEFT JOIN`s for relations.
+   * Results are returned as instantiated model objects.
+   *
+   * @param {string[]} columns - List of columns to select. Use ['*'] to select all columns from the main table.
+   * @param {IOptions} options - Query options including `order_by` and optional `relations` to eager load.
+   *
+   * @throws {Error} If `whereConditions` exist when calling this method.
+   *
+   * @returns {Promise<any[]>} A Promise that resolves to an array of model instances.
    *
    * @example
-   * // Retrieve all users
-   * const users = await UserModel.all();
+   * // Get all users, ordered by creation date
+   * const users = await User.__mb_all(["id", "name"], {
+   *   order_by: { column: "created_at", sort: "desc" }
+   * });
    *
-   * // Retrieve all products with only the 'name' and 'price' columns
-   * const products = await ProductModel.all(["name", "price"]);
+   * @example
+   * // Get all products with related category
+   * const products = await Product.__mb_all(["*"], {
+   *   order_by: { column: "id", sort: "asc" },
+   *   relations: Product.__mb_with("category")
+   * });
    */
   static async __mb_all(columns: string[], options: IOptions) {
     if (this.whereConditions && Object.keys(this.whereConditions).length > 0) {
@@ -264,20 +317,33 @@ export abstract class ModelBase {
     return instances;
   }
   /**
-   * Retrieves records from the database based on specified conditions, optional column selection, and relationships.
+   * @internal
+   * Retrieves records from the table based on provided conditions and options, including optional relations.
    *
-   * @param {string[]} [columns=["*"]] - An array of column names to retrieve (default is all columns "*").
-   * @returns {Promise<Model[]>} - An array of model instances corresponding to the retrieved records.
+   * This method supports adding `WHERE` conditions to filter the results, as well as `ORDER BY` for sorting.
+   * It also handles eager-loading relations by performing `LEFT JOIN`s on the related tables.
+   *
+   * @param {string[]} columns - List of columns to select. Use ['*'] to select all columns from the main table.
+   * @param {IOptions} options - Query options including `conditions`, `order_by`, and optional `relations` to eager load.
+   *
+   * @throws {Error} If `conditions` are not properly defined or if `relations` cause issues in the query.
+   *
+   * @returns {Promise<any[]>} A Promise that resolves to an array of model instances.
    *
    * @example
-   * // Retrieve all records with default columns
-   * const records = await Model.get();
+   * // Get users filtered by conditions and ordered by name
+   * const users = await User.__mb_get(["id", "name"], {
+   *   conditions: { status: "active" },
+   *   order_by: { column: "name", sort: "asc" }
+   * });
    *
-   * // Retrieve only the 'name' and 'price' columns
-   * const products = await ProductModel.get(["name", "price"]);
-   *
-   * // Retrieve records with a where condition (e.g., records where price is less than 500)
-   * const filteredProducts = await ProductModel.where({ price: ["<", 500] }).get(["name", "price"]);
+   * @example
+   * // Get products with related category, ordered by price
+   * const products = await Product.__mb_get(["*"], {
+   *   conditions: { in_stock: true },
+   *   order_by: { column: "price", sort: "desc" },
+   *   relations: Product.__mb_with("category")
+   * });
    */
   static async __mb_get(columns: string[], options: IOptions) {
     const table = this.getTable();
@@ -328,18 +394,33 @@ export abstract class ModelBase {
     return instances;
   }
   /**
-   * Retrieves an array of values for a specific column, optionally filtered by conditions.
+   * @internal
+   * Retrieves all values of a specified column from the table, optionally filtered by conditions and ordered.
    *
-   * @param value - The name of the column whose values should be retrieved.
-   * @returns {Promise<string[] | number[]>} - An array of values from the specified column.
+   * This method is useful when you need to extract a single column's values, for example, all the names or IDs
+   * from a specific table, with optional filtering and sorting.
+   *
+   * @param {string} value - The column name whose values are to be retrieved.
+   * @param {IOptions} options - Query options including optional `order_by` and `conditions` for filtering.
+   *
+   * @throws {Error} If the query fails or if there are issues with conditions or ordering.
+   *
+   * @returns {Promise<string[] | number[]>} A Promise that resolves to an array of values from the specified column.
    *
    * @example
-   * // Retrieve all email addresses from the users table
-   * const emails = await UserModel.valuesOf("email");
+   * // Get all product names ordered by price in descending order
+   * const productNames = await Product.__mb_valuesOf("name", {
+   *   order_by: { column: "price", sort: "desc" }
+   * });
    *
-   * // Retrieve all product names where price is greater than 100
-   * const productNames = await ProductModel.where({ price: [">", 100] }).valuesOf("name");
+   * @example
+   * // Get all active user IDs ordered by creation date
+   * const userIds = await User.__mb_valuesOf("id", {
+   *   conditions: { status: "active" },
+   *   order_by: { column: "created_at", sort: "asc" }
+   * });
    */
+
   static async __mb_valuesOf(value: string, options: IOptions): Promise<string[] | number[]> {
     const table = this.getTable();
     const connection = Database.getConnection();
@@ -357,29 +438,38 @@ export abstract class ModelBase {
     return rows.map((row: any) => row[value]);
   }
   /**
-   * Paginate query results.
+   * @internal
+   * Paginates the results for a given query, returning a specific subset of data based on the provided page number and page size.
+   * This method constructs a SQL query to retrieve a paginated set of records, along with metadata about the pagination.
    *
-   * This method fetches the database records corresponding to the requested page,
-   * with a specified number of records per page. It also applies any previously set `where`
-   * conditions, relations (`with`), and executes the necessary queries for pagination.
+   * @param {number} current_page - The current page number (1-based).
+   * @param {number} per_page - The number of results to return per page.
+   * @param {string[]} columns - An array of columns to select.
+   * @param {IOptions} options - Query options that include optional `conditions`, `relations`, and `order_by`.
    *
-   * @param {number} current_page - The current page number.
-   * @param {number} per_page - The number of records to be retrieved per page.
-   * @param {string[]} columns - An array of column names to retrieve. Defaults to ["*"] if not provided.
-   * @returns {Promise<IPaginateData>} - A promise that resolves to an object containing the paginated data.
+   * @throws {Error} If there's an error with the pagination logic, SQL execution, or if the query is malformed.
    *
-   * The returned object includes:
-   * - `data`: The current page's data (an array of instances).
-   * - `total`: The total number of records in the database.
-   * - `perPage`: The number of records per page.
-   * - `currentPage`: The current page number.
-   * - `lastPage`: The last available page number.
-   * - `count`: The number of records returned on the current page.
+   * @returns {Promise<IPaginateData>} A promise that resolves to an object containing:
+   *   - `data`: The paginated list of instances.
+   *   - `total`: The total number of records in the table.
+   *   - `perPage`: The number of records per page.
+   *   - `currentPage`: The current page number.
+   *   - `lastPage`: The total number of pages.
+   *   - `count`: The number of records on the current page.
    *
-   * Example usage:
-   * ```ts
-   * const products = await ProductModel.paginate(1, 10);
-   * ```
+   * @example
+   * // Get paginated products ordered by price
+   * const paginatedProducts = await Product.__mb_paginate(1, 10, ["id", "name", "price"], {
+   *   order_by: { column: "price", sort: "desc" },
+   *   relations: [{ relatedTable: "category", foreignKey: "category_id", primaryKey: "id", relatedAlias: ["name"], singularName: "category" }],
+   * });
+   *
+   * @example
+   * // Get paginated users who are active, ordered by registration date
+   * const activeUsers = await User.__mb_paginate(2, 20, ["id", "name", "email"], {
+   *   conditions: { status: "active" },
+   *   order_by: { column: "registered_at", sort: "asc" },
+   * });
    */
   static async __mb_paginate(current_page: number, per_page: number, columns: string[], options: IOptions): Promise<IPaginateData> {
     try {
@@ -451,6 +541,23 @@ export abstract class ModelBase {
       throw new Error("Error in pagination: " + error.message);
     }
   }
+  /**
+   * @private
+   * Extracts the values from the `where_conditions` object. If the condition value is an array with two elements,
+   * it returns the second element, otherwise it returns the value directly.
+   *
+   * @param {Record<string, any>} where_conditions - An object where keys represent the columns and values represent
+   *        the conditions or values for those columns.
+   *
+   * @returns {any[]} An array of values extracted from the `where_conditions` object, where the second element of any
+   *         array-based condition is used.
+   *
+   * @example
+   * // Example usage:
+   * const conditions = { status: "active", age: [">", 18] };
+   * const values = Model.getJustValues(conditions);
+   * console.log(values); // Output: ["active", 18]
+   */
   private static getJustValues(where_conditions: Record<string, any>) {
     const keys = Object.keys(where_conditions);
     const values = keys.map((key) => {
@@ -462,6 +569,25 @@ export abstract class ModelBase {
     });
     return values;
   }
+  /**
+   * @private
+   * Constructs a SQL WHERE clause from the provided conditions object. The conditions object can include operators
+   * (e.g., `=`, `>`, `IN`, `IS`) and values. It throws an error if an invalid operator is used.
+   *
+   * @param {Record<string, any>} conditions - An object where keys are column names and values are conditions.
+   *        The value can either be a single condition or an array where the first element is an operator
+   *        and the second is the value to be compared.
+   *
+   * @returns {string} A SQL WHERE clause that can be used in a SQL query.
+   *
+   * @throws {Error} If an invalid operator is used in the conditions.
+   *
+   * @example
+   * // Example usage:
+   * const conditions = { age: [">", 18], status: "active" };
+   * const whereClause = Model.setWhereConditions(conditions);
+   * console.log(whereClause); // Output: "age > ? AND status = ?"
+   */
   private static setWhereConditions(conditions: Record<string, any>): string {
     try {
       const keys = Object.keys(conditions);
@@ -497,14 +623,31 @@ export abstract class ModelBase {
       throw new Error("Error setting WHERE conditions: " + error.message);
     }
   }
-  private static resetValues() {
-    this.selectedRelations = [];
-    this.whereConditions = {};
-    this.order_by = {
-      column: "id",
-      sort: "asc",
-    };
-  }
+  /**
+   * @private
+   * Sets the related data for a given instance based on the provided relation.
+   * This method handles the 'belongsTo' relation type, mapping related data to the instance.
+   * It processes column aliases and maps them to their respective related attributes.
+   *
+   * @param {any} relation - The relation configuration object, typically including the following properties:
+   *        - `type`: The type of relation (e.g., "belongsTo").
+   *        - `singularName`: The singular name of the related entity (e.g., "author").
+   *        - `relatedAlias`: The aliases for the related columns (e.g., ["name", "id"]).
+   *
+   * @param {any} instance - The instance object to which the related data will be added.
+   *
+   * @param {any} row - The row of data from the database, containing the related fields as column aliases.
+   *
+   * @returns {any} The updated instance with the related data set.
+   *
+   * @example
+   * // Example usage:
+   * const relation = { type: "belongsTo", singularName: "author", relatedAlias: ["name", "id"] };
+   * const instance = { title: "Some Book" };
+   * const row = { "author_name": "John Doe", "author_id": 1 };
+   * const updatedInstance = Model.setRelations(relation, instance, row);
+   * console.log(updatedInstance); // Output: { title: "Some Book", author: { name: "John Doe", id: 1 } }
+   */
   private static setRelations(relation: any, instance: any, row: any) {
     if (relation.type === "belongsTo") {
       instance[relation.singularName] = {};

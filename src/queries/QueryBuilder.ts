@@ -1,4 +1,4 @@
-import { IRelations } from "../interfaces/interfaces";
+import { IQueryBuilder, IQueryBuilderOrderBy, IQueryBuilderWhere, IQueryBuilderWith, IRelations } from "../interfaces/interfaces";
 import Model from "../model";
 
 interface IQueryOptions {
@@ -6,7 +6,7 @@ interface IQueryOptions {
   conditions?: Record<string, any>;
   columns?: string[];
 }
-class QueryBuilder<TModel extends typeof Model> {
+class QueryBuilder<TModel extends typeof Model> implements IQueryBuilder {
   private modelClass: TModel;
   private relations: IRelations[] = [];
   private conditions: Record<string, any> = {};
@@ -45,18 +45,24 @@ class QueryBuilder<TModel extends typeof Model> {
       conditions: this.conditions,
     });
   }
-  with(...relations: string[]) {
+  async valuesOf(column: string) {
+    return await this.modelClass.__mb_valuesOf(column, {
+      order_by: this.order_by,
+      conditions: this.conditions,
+    });
+  }
+  with(...relations: string[]): IQueryBuilderWith {
     this.relations = this.modelClass.__mb_with(...relations);
     return this;
   }
-  orderBy(column: string, sort: "asc" | "desc") {
+  orderBy(column: string, sort: "asc" | "desc"): IQueryBuilderOrderBy {
     this.order_by = {
       column: column,
       sort: sort,
     };
     return this;
   }
-  where(conditions: Record<string, any>) {
+  where(conditions: Record<string, any>): IQueryBuilderWhere {
     this.conditions = conditions;
     return this;
   }
