@@ -7,7 +7,7 @@ interface IOptions {
   conditions?: Record<string, any>;
   order_by: { column: string; sort: string };
 }
-export abstract class ModelBase {
+abstract class ModelBase {
   protected table: string;
   static readonly primaryKey: string = "id";
   public selectedRelations: IRelations[] = [];
@@ -228,7 +228,6 @@ export abstract class ModelBase {
 
     if (whereClause) sql += ` WHERE ${whereClause}`;
     sql += ` LIMIT 1`;
-    console.log(sql);
 
     const rows = await connection.query(sql, justValues ?? []);
 
@@ -539,6 +538,50 @@ export abstract class ModelBase {
       };
     } catch (error: any) {
       throw new Error("Error in pagination: " + error.message);
+    }
+  }
+  /**
+   * * @internal
+   * Checks if a record exists in the table based on the provided conditions.
+   *
+   * This method executes a `SELECT` query with a `LIMIT 1` clause to efficiently
+   * determine the existence of a record matching the given conditions. It returns
+   * `true` if at least one record is found, otherwise `false`.
+   *
+   * @param {Omit<IOptions, "order_by">} options - Query options excluding ordering.
+   * Must include `conditions` to filter the results.
+   *
+   * @returns {Promise<boolean>} A promise that resolves to `true` if a matching record exists, or `false` otherwise.
+   *
+   * @throws {Error} Throws an error if the query execution fails or if invalid conditions are provided.
+   *
+   * @example
+   * const exists = await User.__mb_exist({ conditions: { email: ["=", "test@example.com"] } });
+   * if (exists) {
+   *   console.log("User already exists.");
+   * }
+   */
+  static async __mb_exist(options: Omit<IOptions, "order_by">): Promise<boolean> {
+    try {
+      const table = this.getTable();
+      const connection = Database.getConnection();
+
+      let whereClause = null;
+      let justValues = null;
+      const conditions = options.conditions ? options.conditions : null;
+      if (conditions) {
+        whereClause = this.setWhereConditions(conditions);
+        justValues = this.getJustValues(conditions);
+      }
+      let sql = `SELECT ${this.primaryKey} FROM ${table}`;
+
+      if (whereClause) sql += ` WHERE ${whereClause}`;
+      sql += ` LIMIT 1`;
+
+      const rows = await connection.query(sql, justValues ?? []);
+      return !!rows[0];
+    } catch (error: any) {
+      throw new Error(error.message);
     }
   }
   /**

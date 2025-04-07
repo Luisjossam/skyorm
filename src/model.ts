@@ -8,7 +8,6 @@ class Model extends ModelBase {
   }
   private static readonly order_by: { column: string; sort: string } = { column: "id", sort: "asc" };
   /**
-   * @public
    * Adds relations to the query, specifying the related tables to be included in the result set.
    * This method allows developers to include related data from other tables, typically using JOINs.
    *
@@ -27,7 +26,6 @@ class Model extends ModelBase {
     return new QueryBuilder(this).with(...relations);
   }
   /**
-   * @public
    * Sets the sorting order for the query result.
    * This method allows developers to define the sorting direction of the query results
    * based on a specified column and sort order (ascending or descending).
@@ -47,7 +45,6 @@ class Model extends ModelBase {
     return new QueryBuilder(this).orderBy(column, sort);
   }
   /**
-   * @public
    * Sets the conditions for filtering data in a query.
    * This method provides a public interface for applying `WHERE` conditions to the query.
    *
@@ -66,7 +63,6 @@ class Model extends ModelBase {
     return new QueryBuilder(this).where(conditions);
   }
   /**
-   * @public
    * Retrieves all records from the table based on the specified columns.
    * This method serves as a public interface for fetching multiple records from the database.
    *
@@ -79,11 +75,10 @@ class Model extends ModelBase {
    * const results = await Model.all(["id", "name"]);
    * console.log(results); // Output: Array of model instances with `id` and `name` columns
    */
-  static all(columns: string[] = ["*"]): Promise<any[]> {
-    return this.__mb_all(columns, { order_by: this.order_by });
+  static get(columns: string[] = ["*"]): Promise<any[]> {
+    return this.__mb_get(columns, { order_by: this.order_by });
   }
   /**
-   * @public
    * Retrieves a single record from the table based on the specified columns.
    * This method serves as a public interface for fetching a single record from the database.
    *
@@ -100,7 +95,6 @@ class Model extends ModelBase {
     return this.__mb_getOne(columns, {});
   }
   /**
-   * @public
    * Retrieves a single record from the table based on the provided primary key.
    * This method acts as a public interface for fetching a record by its primary key.
    *
@@ -118,7 +112,6 @@ class Model extends ModelBase {
     return this.__mb_find(primary_key, columns, {});
   }
   /**
-   * @public
    * Retrieves a paginated list of records from the table with optional column selection.
    * This method acts as a public interface for paginated queries.
    *
@@ -138,7 +131,6 @@ class Model extends ModelBase {
     return this.__mb_paginate(current_page, per_page, columns, { order_by: this.order_by });
   }
   /**
-   * @public
    * Retrieves the distinct values of a specific column from the table.
    * This method acts as a public interface for querying the distinct values of a column.
    *

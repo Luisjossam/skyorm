@@ -14,12 +14,6 @@ class QueryBuilder<TModel extends typeof Model> implements IQueryBuilder {
   constructor(modelClass: TModel) {
     this.modelClass = modelClass;
   }
-  async all(columns: string[] = ["*"]) {
-    return await this.modelClass.__mb_all(columns, {
-      relations: this.relations,
-      order_by: this.order_by,
-    });
-  }
   async get(columns: string[] = ["*"]) {
     return await this.modelClass.__mb_get(columns, {
       order_by: this.order_by,
@@ -50,6 +44,9 @@ class QueryBuilder<TModel extends typeof Model> implements IQueryBuilder {
       order_by: this.order_by,
       conditions: this.conditions,
     });
+  }
+  async exist(): Promise<boolean> {
+    return await this.modelClass.__mb_exist({ conditions: this.conditions });
   }
   with(...relations: string[]): IQueryBuilderWith {
     this.relations = this.modelClass.__mb_with(...relations);
