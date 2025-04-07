@@ -161,13 +161,39 @@ export interface IQueryBuilder {
    *
    * @example
    * // Example usage:
-   * const values = await Model.valuesOf("name");
+   * const values = await Model.pluck("name");
    * console.log(values);
    * // Output: ["John", "Alice", "Bob"]
    */
-  valuesOf(column: string): Promise<any>;
+  pluck(column: string): Promise<any>;
+  /**
+   * Sets a limit on the number of records to retrieve from the query.
+   *
+   * This is useful when you only want to retrieve a specific number of results.
+   * Typically used in conjunction with other query builder methods like `where` or `orderBy`.
+   *
+   * @param {number} limit - The maximum number of records to return.
+   * @returns {QueryBuilder} An instance of the QueryBuilder for method chaining.
+   *
+   * @example
+   * const users = await User.where({ active: true }).limit(10).get();
+   */
+  limit(limit: number): IQueryBuilderLimit;
 }
-export interface IQueryBuilderWhere extends Omit<IQueryBuilder, "where" | "find"> {
+interface IQBSum {
+  /**
+   * Returns the total sum of the specified column values across all records
+   * that match the current model's conditions.
+   *
+   * @param {string} column - The name of the column to sum.
+   * @returns {Promise<number>} A promise that resolves to the sum of the column.
+   *
+   * @example
+   * const total = await User.where({ active: true }).sum("balance");
+   */
+  sum(column: string): Promise<number>;
+}
+export interface IQueryBuilderWhere extends Omit<IQueryBuilder, "where" | "find">, IQBSum {
   /**
    * Checks if at least one record exists in the table using the current query context.
    *
@@ -182,17 +208,7 @@ export interface IQueryBuilderWhere extends Omit<IQueryBuilder, "where" | "find"
    * }
    */
   exist(): Promise<boolean>;
-  /**
-   * Returns the total sum of the specified column values across all records
-   * that match the current model's conditions.
-   *
-   * @param {string} column - The name of the column to sum.
-   * @returns {Promise<number>} A promise that resolves to the sum of the column.
-   *
-   * @example
-   * const total = await User.where({ active: true }).sum("balance");
-   */
-  sum(column: string): Promise<number>;
 }
 export interface IQueryBuilderOrderBy extends Omit<IQueryBuilder, "orderBy" | "find" | "getOne"> {}
-export interface IQueryBuilderWith extends Omit<IQueryBuilder, "valuesOf"> {}
+export interface IQueryBuilderWith extends Omit<IQueryBuilder, "pluck" | "with"> {}
+export interface IQueryBuilderLimit extends Omit<IQueryBuilder, "getOne" | "find" | "limit" | "paginate"> {}

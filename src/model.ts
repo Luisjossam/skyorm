@@ -1,4 +1,4 @@
-import { IPaginateData } from "./interfaces/interfaces";
+import { IPaginateData, IQueryBuilderLimit } from "./interfaces/interfaces";
 import ModelBase from "./model_base";
 import QueryBuilder from "./queries/QueryBuilder";
 
@@ -24,6 +24,21 @@ class Model extends ModelBase {
    */
   static with(...relations: string[]) {
     return new QueryBuilder(this).with(...relations);
+  }
+  /**
+   * Sets a limit on the number of records to retrieve from the query.
+   *
+   * This is useful when you only want to retrieve a specific number of results.
+   * Typically used in conjunction with other query builder methods like `where` or `orderBy`.
+   *
+   * @param {number} limit - The maximum number of records to return.
+   * @returns {QueryBuilder} An instance of the QueryBuilder for method chaining.
+   *
+   * @example
+   * const users = await User.where({ active: true }).limit(10).get();
+   */
+  static limit(limit: number): IQueryBuilderLimit {
+    return new QueryBuilder(this).limit(limit);
   }
   /**
    * Sets the sorting order for the query result.
@@ -91,7 +106,7 @@ class Model extends ModelBase {
    * const result = await Model.getOne(["id", "name"]);
    * console.log(result); // Output: A single model instance with `id` and `name` columns or `null` if no record is found
    */
-  static getOne(columns: string[] = ["*"]): Promise<any | null> {
+  static getOne(columns: string[] = ["*"]): Promise<Record<string, any> | null> {
     return this.__mb_getOne(columns, {});
   }
   /**
@@ -108,7 +123,7 @@ class Model extends ModelBase {
    * const result = await Model.find(1, ["id", "name"]);
    * console.log(result); // Output: A single model instance with `id` and `name` columns or `null` if no record is found
    */
-  static find(primary_key: number | string, columns: string[] = ["*"]): Promise<any | null> {
+  static find(primary_key: number | string, columns: string[] = ["*"]): Promise<Record<string, any> | null> {
     return this.__mb_find(primary_key, columns, {});
   }
   /**
@@ -140,12 +155,12 @@ class Model extends ModelBase {
    *
    * @example
    * // Example usage:
-   * const values = await Model.valuesOf("name");
+   * const values = await Model.pluck("name");
    * console.log(values);
    * // Output: ["John", "Alice", "Bob"]
    */
-  static valuesOf(column: string): Promise<string[] | number[]> {
-    return this.__mb_valuesOf(column, { order_by: this.order_by });
+  static pluck(column: string): Promise<string[] | number[]> {
+    return this.__mb_pluck(column, { order_by: this.order_by });
   }
   /**
    * Returns the total sum of the specified column values across all records

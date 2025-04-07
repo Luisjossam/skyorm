@@ -1,15 +1,11 @@
 import { IQueryBuilder, IQueryBuilderOrderBy, IQueryBuilderWhere, IQueryBuilderWith, IRelations } from "../interfaces/interfaces";
 import Model from "../model";
 
-interface IQueryOptions {
-  relations?: string[];
-  conditions?: Record<string, any>;
-  columns?: string[];
-}
 class QueryBuilder<TModel extends typeof Model> implements IQueryBuilder {
   private modelClass: TModel;
   private relations: IRelations[] = [];
   private conditions: Record<string, any> = {};
+  private number_limit: number | null = null;
   private order_by: { column: string; sort: string } = { column: "id", sort: "asc" };
   constructor(modelClass: TModel) {
     this.modelClass = modelClass;
@@ -18,6 +14,7 @@ class QueryBuilder<TModel extends typeof Model> implements IQueryBuilder {
     return await this.modelClass.__mb_get(columns, {
       order_by: this.order_by,
       relations: this.relations,
+      number_limit: this.number_limit,
       conditions: this.conditions,
     });
   }
@@ -39,20 +36,27 @@ class QueryBuilder<TModel extends typeof Model> implements IQueryBuilder {
       conditions: this.conditions,
     });
   }
-  async valuesOf(column: string) {
-    return await this.modelClass.__mb_valuesOf(column, {
+  async pluck(column: string) {
+    return await this.modelClass.__mb_pluck(column, {
       order_by: this.order_by,
       conditions: this.conditions,
+      number_limit: this.number_limit,
     });
   }
   async exist(): Promise<boolean> {
     return await this.modelClass.__mb_exist({ conditions: this.conditions });
   }
   async sum(column: string): Promise<number> {
-    return await this.modelClass.__mb_sum(column, { conditions: this.conditions });
+    return await this.modelClass.__mb_sum(column, { conditions: this.conditions, number_limit: this.number_limit });
   }
   with(...relations: string[]): IQueryBuilderWith {
     this.relations = this.modelClass.__mb_with(...relations);
+    return this;
+  }
+  limit(limit: number) {
+    if (typeof limit !== "number" || isNaN(limit) || limit < 0)
+      throw new TypeError(`The "limit" value must be a number and positive. Received: "${limit}"`);
+    this.number_limit = limit;
     return this;
   }
   orderBy(column: string, sort: "asc" | "desc"): IQueryBuilderOrderBy {

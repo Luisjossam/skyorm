@@ -6,6 +6,7 @@ interface IOptions {
   relations?: IRelations[];
   conditions?: Record<string, any>;
   order_by: { column: string; sort: string };
+  number_limit?: number | null;
 }
 abstract class ModelBase {
   protected table: string;
@@ -379,6 +380,8 @@ abstract class ModelBase {
 
     if (whereClause) sql += ` WHERE ${whereClause}`;
     sql += ` ORDER BY ${table}.${options.order_by.column} ${options.order_by.sort}`;
+    if (options.number_limit) sql += ` LIMIT ${options.number_limit}`;
+
     const rows = await connection.query(sql, justValues ?? []);
     const instances = rows.map((row: any) => {
       let instance = Object.create(this.prototype);
@@ -408,19 +411,18 @@ abstract class ModelBase {
    *
    * @example
    * // Get all product names ordered by price in descending order
-   * const productNames = await Product.__mb_valuesOf("name", {
+   * const productNames = await Product.__mb_pluck("name", {
    *   order_by: { column: "price", sort: "desc" }
    * });
    *
    * @example
    * // Get all active user IDs ordered by creation date
-   * const userIds = await User.__mb_valuesOf("id", {
+   * const userIds = await User.__mb_pluck("id", {
    *   conditions: { status: "active" },
    *   order_by: { column: "created_at", sort: "asc" }
    * });
    */
-
-  static async __mb_valuesOf(value: string, options: IOptions): Promise<string[] | number[]> {
+  static async __mb_pluck(value: string, options: IOptions): Promise<string[] | number[]> {
     const table = this.getTable();
     const connection = Database.getConnection();
     let whereClause = null;
@@ -432,6 +434,7 @@ abstract class ModelBase {
     let sql = `SELECT ${value} FROM ${table}`;
     if (whereClause) sql += ` WHERE ${whereClause}`;
     sql += ` ORDER BY ${table}.${options.order_by.column} ${options.order_by.sort}`;
+    if (options.number_limit) sql += ` LIMIT ${options.number_limit}`;
 
     const rows = await connection.query(sql, justValues ?? []);
     return rows.map((row: any) => row[value]);
@@ -617,6 +620,9 @@ abstract class ModelBase {
       let sql = `SELECT SUM(${column}) as ${column} FROM ${table}`;
 
       if (whereClause) sql += ` WHERE ${whereClause}`;
+      if (options.number_limit) sql += ` LIMIT ${options.number_limit}`;
+      console.log(sql);
+
       const rows = await connection.query(sql, justValues ?? []);
 
       return rows[0][column];
