@@ -182,6 +182,17 @@ export interface IQueryBuilderWhere extends Omit<IQueryBuilder, "where" | "find"
    * }
    */
   exist(): Promise<boolean>;
+  /**
+   * Returns the total sum of the specified column values across all records
+   * that match the current model's conditions.
+   *
+   * @param {string} column - The name of the column to sum.
+   * @returns {Promise<number>} A promise that resolves to the sum of the column.
+   *
+   * @example
+   * const total = await User.where({ active: true }).sum("balance");
+   */
+  sum(column: string): Promise<number>;
 }
 export interface IQueryBuilderOrderBy extends Omit<IQueryBuilder, "orderBy" | "find" | "getOne"> {}
 export interface IQueryBuilderWith extends Omit<IQueryBuilder, "valuesOf"> {}

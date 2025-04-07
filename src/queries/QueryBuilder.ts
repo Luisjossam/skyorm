@@ -48,6 +48,9 @@ class QueryBuilder<TModel extends typeof Model> implements IQueryBuilder {
   async exist(): Promise<boolean> {
     return await this.modelClass.__mb_exist({ conditions: this.conditions });
   }
+  async sum(column: string): Promise<number> {
+    return await this.modelClass.__mb_sum(column, { conditions: this.conditions });
+  }
   with(...relations: string[]): IQueryBuilderWith {
     this.relations = this.modelClass.__mb_with(...relations);
     return this;

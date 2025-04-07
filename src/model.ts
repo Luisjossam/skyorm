@@ -147,5 +147,18 @@ class Model extends ModelBase {
   static valuesOf(column: string): Promise<string[] | number[]> {
     return this.__mb_valuesOf(column, { order_by: this.order_by });
   }
+  /**
+   * Returns the total sum of the specified column values across all records
+   * that match the current model's conditions.
+   *
+   * @param {string} column - The name of the column to sum.
+   * @returns {Promise<number>} A promise that resolves to the sum of the column.
+   *
+   * @example
+   * const total = await User.where({ active: true }).sum("balance");
+   */
+  static sum(column: string): Promise<number> {
+    return this.__mb_sum(column, {});
+  }
 }
 export default Model;

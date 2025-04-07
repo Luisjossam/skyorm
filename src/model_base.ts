@@ -585,6 +585,46 @@ abstract class ModelBase {
     }
   }
   /**
+   * * @internal
+   * Executes a SUM aggregate function on the specified column, optionally using WHERE conditions.
+   *
+   * This is an internal method used by the ORM to calculate the total sum of values
+   * in a given column, filtered by optional conditions.
+   *
+   * @param {string} column - The name of the column to sum.
+   * @param {Omit<IOptions, "order_by">} options - Query options excluding order_by. Can include conditions.
+   * @returns {Promise<number>} A promise that resolves to the sum of the column values matching the conditions.
+   *
+   * @throws {Error} Throws an error if the SQL execution fails.
+   *
+   * @example
+   * const total = await User.__mb_sum("balance", {
+   *   conditions: { active: true }
+   * });
+   */
+  static async __mb_sum(column: string, options: Omit<IOptions, "order_by">): Promise<number> {
+    try {
+      const table = this.getTable();
+      const connection = Database.getConnection();
+
+      let whereClause = null;
+      let justValues = null;
+      const conditions = options.conditions ? options.conditions : null;
+      if (conditions) {
+        whereClause = this.setWhereConditions(conditions);
+        justValues = this.getJustValues(conditions);
+      }
+      let sql = `SELECT SUM(${column}) as ${column} FROM ${table}`;
+
+      if (whereClause) sql += ` WHERE ${whereClause}`;
+      const rows = await connection.query(sql, justValues ?? []);
+
+      return rows[0][column];
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  /**
    * @private
    * Extracts the values from the `where_conditions` object. If the condition value is an array with two elements,
    * it returns the second element, otherwise it returns the value directly.
