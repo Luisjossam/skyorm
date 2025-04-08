@@ -38,36 +38,6 @@ abstract class ModelBase {
   static getTable() {
     return this.table ?? pluralize(this.name.replace(/Model$/, "").toLowerCase());
   }
-
-  /**
-   * Defines a "belongs to" relationship between the current model and another model.
-   * This method establishes a relationship where the current model has a foreign key that points to another model's primary key.
-   * The foreign key can be customized, otherwise, it defaults to the name of the related table with `_id` appended.
-   *
-   * @param {typeof Model} model - The related model class that this model belongs to.
-   * @param {string[]} columns - The columns to be selected in the query.
-   * @param {string} [foreign_key] - The name of the foreign key column in the current model's table. If not provided, it will be inferred based on the related model's table name.
-   *
-   * @returns {Object} An object describing the related table, foreign key, and the primary key of the related model.
-   *
-   * @example
-   * class ProductModel extends Model {
-   *   static category() {
-   *     return this.belongsTo(CategoryModel, ['id', 'name']);
-   *   }
-   * }
-   *
-   * const relation = ProductModel.category();
-   * console.log(relation);
-   * // Output:
-   * // {
-   * //   type: 'belongsTo',
-   * //   relatedTable: 'categories',
-   * //   foreignKey: 'category_id',
-   * //   singularName: 'category',
-   * //   primaryKey: 'id',
-   * // }
-   */
   static belongsTo(model: typeof ModelBase, columns: string[], foreign_key?: string, local_key: string = this.primaryKey) {
     const relatedTable = model.getTable();
     const singularName = pluralize.isSingular(relatedTable) ? relatedTable : pluralize.singular(relatedTable);
@@ -89,6 +59,19 @@ abstract class ModelBase {
       type: "hasMany",
       relatedTable,
       foreignKey,
+      primaryKey: model.primaryKey,
+      relatedAlias: columns,
+    };
+  }
+  static hasOne(model: typeof ModelBase, columns: string[], foreign_key?: string, local_key: string = this.primaryKey) {
+    const relatedTable = model.getTable();
+    const singularName = pluralize.isSingular(relatedTable) ? relatedTable : pluralize.singular(relatedTable);
+    const foreignKey = foreign_key ?? `${pluralize.singular(this.getTable())}_${local_key}`;
+    return {
+      type: "hasOne",
+      relatedTable,
+      foreignKey,
+      singularName,
       primaryKey: model.primaryKey,
       relatedAlias: columns,
     };
@@ -164,7 +147,7 @@ abstract class ModelBase {
           });
           sql += ` FROM ${table}`;
           sql += ` LEFT JOIN ${relation.relatedTable} ON ${relation.relatedTable}.${relation.primaryKey} = ${table}.${relation.foreignKey}`;
-        } else if (relation.type === "hasMany") {
+        } else if (relation.type === "hasMany" || relation.type === "hasOne") {
           sql += ` FROM ${table}`;
         }
       });
@@ -239,7 +222,7 @@ abstract class ModelBase {
           });
           sql += ` FROM ${table}`;
           sql += ` LEFT JOIN ${relation.relatedTable} ON ${relation.relatedTable}.${relation.primaryKey} = ${table}.${relation.foreignKey}`;
-        } else if (relation.type === "hasMany") {
+        } else if (relation.type === "hasMany" || relation.type === "hasOne") {
           sql += ` FROM ${table}`;
         }
       });
@@ -394,7 +377,7 @@ abstract class ModelBase {
           });
           sql += ` FROM ${table}`;
           sql += ` LEFT JOIN ${relation.relatedTable} ON ${relation.relatedTable}.${relation.primaryKey} = ${table}.${relation.foreignKey}`;
-        } else if (relation.type === "hasMany") {
+        } else if (relation.type === "hasMany" || relation.type === "hasOne") {
           sql += ` FROM ${table}`;
         }
       });
@@ -530,7 +513,7 @@ abstract class ModelBase {
             });
             sql += ` FROM ${table}`;
             sql += ` LEFT JOIN ${relation.relatedTable} ON ${relation.relatedTable}.${relation.primaryKey} = ${table}.${relation.foreignKey}`;
-          } else if (relation.type === "hasMany") {
+          } else if (relation.type === "hasMany" || relation.type === "hasOne") {
             sql += ` FROM ${table}`;
           }
         });
@@ -815,6 +798,10 @@ abstract class ModelBase {
       let query = `SELECT ${relation.relatedAlias.map((i: any) => i)} FROM ${relation.relatedTable} WHERE ${relation.foreignKey} = ${row[relation.primaryKey]}`;
       const data = await this.__mb_raw(query, [], false);
       if (data) instance[relation.relatedTable] = data;
+    } else if (relation.type === "hasOne") {
+      let query = `SELECT ${relation.relatedAlias.map((i: any) => i)} FROM ${relation.relatedTable} WHERE ${relation.foreignKey} = ${row[relation.primaryKey]} LIMIT 1`;
+      const data = await this.__mb_raw(query, [], false);
+      if (data) instance[relation.singularName] = data[0];
     }
     return instance;
   }

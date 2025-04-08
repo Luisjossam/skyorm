@@ -190,8 +190,28 @@ interface IQBSum {
   sum(column: string): Promise<number>;
 }
 export interface IModelMethods extends IQueryBuilder, IQBSum {
+  /**
+   * Defines a "belongs to" relationship between the current model and another model.
+   * This method establishes a relationship where the current model has a foreign key that points to another model's primary key.
+   * The foreign key can be customized, otherwise, it defaults to the name of the related table with `_id` appended.
+   *
+   * @param {typeof Model} model - The related model class that this model belongs to.
+   * @param {string[]} columns - The columns to be selected in the query.
+   * @param {string} [foreign_key] - The name of the foreign key column in the current model's table. If not provided, it will be inferred based on the related model's table name.
+   *
+   * @returns {Object} An object describing the related table, foreign key, and the primary key of the related model.
+   *
+   * @example
+   * class ProductModel extends Model {
+   *   static category() {
+   *     return this.belongsTo(CategoryModel, ['id', 'name']);
+   *   }
+   * }
+   *
+   */
   belongsTo(model: typeof Model, columns: string[], foreign_key?: string, local_key?: string): any;
   hasMany(model: typeof Model, columns: string[], foreign_key?: string, local_key?: string): any;
+  hasOne(model: typeof Model, columns: string[], foreign_key?: string, local_key?: string): any;
   /**
    * Executes a raw SQL query and returns the result either as model instances or as plain JSON objects.
    *
