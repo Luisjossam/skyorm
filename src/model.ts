@@ -175,5 +175,27 @@ class Model extends ModelBase {
   static sum(column: string): Promise<number> {
     return this.__mb_sum(column, {});
   }
+  /**
+   * Executes a raw SQL query and returns the result either as model instances or as plain JSON objects.
+   *
+   * @param {string} query The raw SQL query to execute.
+   * @param {Array<string | number>} values The values to bind to the query parameters.
+   * @param {boolean} [as_model=true] If `true`, the result will be returned as instances of the model; if `false`, it will return a plain JSON object. Defaults to `true`.
+   * @returns {Promise<Array<ModelType> | any[]>} An array of model instances if `as_model` is `true`, or a plain JSON array if `as_model` is `false`.
+   * @throws {Error} Throws an error if the query fails.
+   *
+   * @example
+   * // Example usage:
+   * const table = "products";
+   * const products = await ProductModel.raw(`SELECT * FROM ${table} WHERE price > ? LIMIT ?`, [20, 2]);
+   * console.log(products); // Output will be an array of Product model instances.
+   *
+   * // Example with plain JSON response:
+   * const plainProducts = await ProductModel.raw(`SELECT * FROM ${table} WHERE price > ? LIMIT ?`, [20, 2], false);
+   * console.log(plainProducts); // Output will be a plain JSON array.
+   */
+  static raw(query: string, values: (string | number | boolean)[], as_model: boolean = true) {
+    return this.__mb_raw(query, values, as_model);
+  }
 }
 export default Model;

@@ -68,16 +68,32 @@ abstract class ModelBase {
    * //   primaryKey: 'id',
    * // }
    */
-  static belongsTo(model: typeof ModelBase, columns: string[], foreign_key?: string) {
+  static belongsTo(model: typeof ModelBase, columns: string[], foreign_key?: string, local_key: string = this.primaryKey) {
     const relatedTable = model.getTable();
     const singularName = pluralize.isSingular(relatedTable) ? relatedTable : pluralize.singular(relatedTable);
-    const foreignKey = foreign_key ?? `${singularName}_id`;
+    const foreignKey = foreign_key ?? `${singularName}_${local_key}`;
 
     return {
       type: "belongsTo",
       relatedTable,
       foreignKey,
       singularName,
+      local_key,
+      primaryKey: model.primaryKey,
+      relatedAlias: columns,
+    };
+  }
+  static hasMany(model: typeof ModelBase, columns: string[], foreign_key?: string, local_key: string = this.primaryKey) {
+    const relatedTable = model.getTable();
+    const singularName = pluralize.isSingular(relatedTable) ? relatedTable : pluralize.singular(relatedTable);
+
+    const foreignKey = foreign_key ?? `${this.getTable()}_${local_key}`;
+    return {
+      type: "hasMany",
+      relatedTable,
+      foreignKey,
+      singularName,
+      local_key,
       primaryKey: model.primaryKey,
       relatedAlias: columns,
     };
@@ -631,6 +647,36 @@ abstract class ModelBase {
     }
   }
   /**
+   * @internal
+   * Executes a raw SQL query and returns the result either as model instances or as plain JSON objects.
+   *
+   * @param {string} query The raw SQL query to execute.
+   * @param {Array<string | number | boolean>} values The values to bind to the query parameters.
+   * @param {boolean} asModel If `true`, the result will be returned as instances of the model; if `false`, it will return a plain JSON object.
+   * @returns {Promise<Array<ModelType> | any[]>} An array of model instances if `asModel` is `true`, or a plain JSON array if `asModel` is `false`.
+   * @throws {Error} Throws an error if the query fails.
+   */
+  static async __mb_raw(query: string, values: (string | number | boolean)[], asModel: boolean) {
+    try {
+      const connection = Database.getConnection();
+      let sanitize: string[] = [];
+      if (values.length > 0) {
+        sanitize = this.sanitizeArray(values);
+      }
+      const response = await connection.query(query, sanitize);
+      if (asModel) {
+        return response.map((row: any) => {
+          const instance = Object.create(this.prototype);
+          Object.assign(instance, row);
+          return instance;
+        });
+      }
+      return response;
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  /**
    * @private
    * Extracts the values from the `where_conditions` object. If the condition value is an array with two elements,
    * it returns the second element, otherwise it returns the value directly.
@@ -751,6 +797,20 @@ abstract class ModelBase {
       }
     }
     return instance;
+  }
+  private static sanitizeArray(values: (string | number | boolean)[]): string[] {
+    return values.map((value) => {
+      if (typeof value === "string") {
+        return value
+          .replace(/[^\w\s]/gi, "")
+          .replace(/'/g, "\\'")
+          .replace(/"/g, '\\"')
+          .trim();
+      }
+      if (typeof value === "number") return value.toString();
+      if (typeof value === "boolean") return value ? "true" : "false";
+      return value;
+    });
   }
 }
 export default ModelBase;
