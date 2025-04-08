@@ -28,6 +28,10 @@ export interface IRelations {
   singularName: string;
   relatedAlias: string[];
   type: string;
+  pivotTable?: string;
+  thisTable?: string;
+  relatedKey?: string;
+  modelPrimaryKey?: string;
 }
 export interface IPaginateData {
   data: any[];
@@ -209,9 +213,10 @@ export interface IModelMethods extends IQueryBuilder, IQBSum {
    * }
    *
    */
-  belongsTo(model: typeof Model, columns: string[], foreign_key?: string, local_key?: string): any;
-  hasMany(model: typeof Model, columns: string[], foreign_key?: string, local_key?: string): any;
-  hasOne(model: typeof Model, columns: string[], foreign_key?: string, local_key?: string): any;
+  belongsTo(model: typeof Model, columns: string[], foreign_key?: string): any;
+  hasMany(model: typeof Model, columns: string[], foreign_key?: string): any;
+  hasOne(model: typeof Model, columns: string[], foreign_key?: string): any;
+  belongsToMany(model: typeof Model, columns: string[], pivotTable?: string, foreignKey?: string, relatedKey?: string): any;
   /**
    * Executes a raw SQL query and returns the result either as model instances or as plain JSON objects.
    *

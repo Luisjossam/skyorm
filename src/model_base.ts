@@ -38,42 +38,64 @@ abstract class ModelBase {
   static getTable() {
     return this.table ?? pluralize(this.name.replace(/Model$/, "").toLowerCase());
   }
-  static belongsTo(model: typeof ModelBase, columns: string[], foreign_key?: string, local_key: string = this.primaryKey) {
+  static belongsTo(model: typeof ModelBase, columns: string[], foreign_key?: string) {
     const relatedTable = model.getTable();
     const singularName = pluralize.isSingular(relatedTable) ? relatedTable : pluralize.singular(relatedTable);
-    const foreignKey = foreign_key ?? `${singularName}_${local_key}`;
+    const foreignKey = foreign_key ?? `${singularName}_${this.primaryKey}`;
 
     return {
       type: "belongsTo",
       relatedTable,
       foreignKey,
       singularName,
-      primaryKey: model.primaryKey,
+      primaryKey: this.primaryKey,
       relatedAlias: columns,
     };
   }
-  static hasMany(model: typeof ModelBase, columns: string[], foreign_key?: string, local_key: string = this.primaryKey) {
+  static hasMany(model: typeof ModelBase, columns: string[], foreign_key?: string) {
     const relatedTable = model.getTable();
-    const foreignKey = foreign_key ?? `${pluralize.singular(this.getTable())}_${local_key}`;
+    const foreignKey = foreign_key ?? `${pluralize.singular(this.getTable())}_${this.primaryKey}`;
     return {
       type: "hasMany",
       relatedTable,
       foreignKey,
-      primaryKey: model.primaryKey,
+      primaryKey: this.primaryKey,
       relatedAlias: columns,
     };
   }
-  static hasOne(model: typeof ModelBase, columns: string[], foreign_key?: string, local_key: string = this.primaryKey) {
+  static hasOne(model: typeof ModelBase, columns: string[], foreign_key?: string) {
     const relatedTable = model.getTable();
     const singularName = pluralize.isSingular(relatedTable) ? relatedTable : pluralize.singular(relatedTable);
-    const foreignKey = foreign_key ?? `${pluralize.singular(this.getTable())}_${local_key}`;
+    const foreignKey = foreign_key ?? `${pluralize.singular(this.getTable())}_${this.primaryKey}`;
     return {
       type: "hasOne",
       relatedTable,
       foreignKey,
       singularName,
-      primaryKey: model.primaryKey,
+      primaryKey: this.primaryKey,
       relatedAlias: columns,
+    };
+  }
+  static belongsToMany(model: typeof ModelBase, columns: string[], pivotTable?: string, foreign_key?: string, related_key?: string) {
+    const relatedTable = model.getTable();
+    const thisTable = this.getTable();
+    const names: string[] = [relatedTable, thisTable].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+    const singularName = pluralize.isSingular(relatedTable) ? relatedTable : pluralize.singular(relatedTable);
+    const pivot = pivotTable ?? `${pluralize.singular(names[0])}_${pluralize.singular(names[1])}`;
+    const fk = foreign_key ?? `${pluralize.singular(thisTable)}_${this.primaryKey}`;
+    const rk = related_key ?? `${pluralize.singular(relatedTable)}_${model.primaryKey}`;
+
+    return {
+      type: "belongsToMany",
+      relatedTable,
+      relatedAlias: columns,
+      thisTable,
+      singularName,
+      pivotTable: pivot,
+      foreignKey: fk,
+      relatedKey: rk,
+      primaryKey: this.primaryKey,
+      modelPrimaryKey: model.primaryKey,
     };
   }
   /**
@@ -126,45 +148,48 @@ abstract class ModelBase {
    * });
    */
   static async __mb_find(primary_key: number | string, columns: string[], options: Omit<IOptions, "order_by">) {
-    const table = this.getTable();
-    const connection = Database.getConnection();
-    let columnAliases: string[] = [];
-
-    columns.forEach((column) => {
-      if (column === "*") {
-        columnAliases.push(`${table}.*`);
-      } else {
-        columnAliases.push(`${table}.${column}`);
-      }
-    });
-    let sql = `SELECT `;
-    sql += `${columnAliases.map((column) => column)}`;
-    if (options.relations?.length) {
-      options.relations.forEach((relation) => {
-        if (relation.type === "belongsTo") {
-          relation.relatedAlias.forEach((i) => {
-            sql += `, ${relation.relatedTable}.${i} AS ${relation.singularName}_${i}`;
-          });
-          sql += ` FROM ${table}`;
-          sql += ` LEFT JOIN ${relation.relatedTable} ON ${relation.relatedTable}.${relation.primaryKey} = ${table}.${relation.foreignKey}`;
-        } else if (relation.type === "hasMany" || relation.type === "hasOne") {
-          sql += ` FROM ${table}`;
+    try {
+      const table = this.getTable();
+      const connection = Database.getConnection();
+      let columnAliases: string[] = [];
+      columns.forEach((column) => {
+        if (column === "*") {
+          columnAliases.push(`${table}.*`);
+        } else {
+          columnAliases.push(`${table}.${column}`);
         }
       });
-    }
-    if (!options.relations?.length) sql += ` FROM ${table}`;
-    sql += ` WHERE ${table}.${this.primaryKey} = ? LIMIT 1`;
-
-    const rows = await connection.query(sql, [primary_key]);
-    let instance_relation = rows.length ? Object.create(this.prototype) : null;
-    if (!instance_relation) return null;
-    Object.assign(instance_relation, rows[0]);
-    if (options.relations?.length) {
-      for (const relation of options.relations) {
-        instance_relation = await this.setRelations(relation, instance_relation, rows[0]);
+      let sql = `SELECT `;
+      sql += `${columnAliases.map((column) => column)}`;
+      if (options.relations?.length) {
+        options.relations.forEach((relation) => {
+          if (relation.type === "belongsTo") {
+            relation.relatedAlias.forEach((i) => {
+              sql += `, ${relation.relatedTable}.${i} AS ${relation.singularName}_${i}`;
+            });
+            sql += ` FROM ${table}`;
+            sql += ` LEFT JOIN ${relation.relatedTable} ON ${relation.relatedTable}.${relation.primaryKey} = ${table}.${relation.foreignKey}`;
+          } else if (relation.type === "hasMany" || relation.type === "hasOne" || relation.type === "belongsToMany") {
+            sql += ` FROM ${table}`;
+          }
+        });
       }
+      if (!options.relations?.length) sql += ` FROM ${table}`;
+      sql += ` WHERE ${table}.${this.primaryKey} = ?`;
+
+      const rows = await connection.query(sql, [primary_key]);
+      let instance_relation = rows.length ? Object.create(this.prototype) : null;
+      if (!instance_relation) return null;
+      Object.assign(instance_relation, rows[0]);
+      if (options.relations?.length) {
+        for (const relation of options.relations) {
+          instance_relation = await this.setRelations(relation, instance_relation, rows[0]);
+        }
+      }
+      return instance_relation;
+    } catch (error: any) {
+      throw new Error(error.message);
     }
-    return instance_relation;
   }
   /**
    * @internal
@@ -222,7 +247,7 @@ abstract class ModelBase {
           });
           sql += ` FROM ${table}`;
           sql += ` LEFT JOIN ${relation.relatedTable} ON ${relation.relatedTable}.${relation.primaryKey} = ${table}.${relation.foreignKey}`;
-        } else if (relation.type === "hasMany" || relation.type === "hasOne") {
+        } else if (relation.type === "hasMany" || relation.type === "hasOne" || relation.type === "belongsToMany") {
           sql += ` FROM ${table}`;
         }
       });
@@ -377,7 +402,7 @@ abstract class ModelBase {
           });
           sql += ` FROM ${table}`;
           sql += ` LEFT JOIN ${relation.relatedTable} ON ${relation.relatedTable}.${relation.primaryKey} = ${table}.${relation.foreignKey}`;
-        } else if (relation.type === "hasMany" || relation.type === "hasOne") {
+        } else if (relation.type === "hasMany" || relation.type === "hasOne" || relation.type === "belongsToMany") {
           sql += ` FROM ${table}`;
         }
       });
@@ -513,7 +538,7 @@ abstract class ModelBase {
             });
             sql += ` FROM ${table}`;
             sql += ` LEFT JOIN ${relation.relatedTable} ON ${relation.relatedTable}.${relation.primaryKey} = ${table}.${relation.foreignKey}`;
-          } else if (relation.type === "hasMany" || relation.type === "hasOne") {
+          } else if (relation.type === "hasMany" || relation.type === "hasOne" || relation.type === "belongsToMany") {
             sql += ` FROM ${table}`;
           }
         });
@@ -783,27 +808,38 @@ abstract class ModelBase {
    * console.log(updatedInstance); // Output: { title: "Some Book", author: { name: "John Doe", id: 1 } }
    */
   private static async setRelations(relation: any, instance: any, row: any) {
-    if (relation.type === "belongsTo") {
-      instance[relation.singularName] = {};
-      if (Array.isArray(relation.relatedAlias)) {
-        relation.relatedAlias.forEach((alias: any) => {
-          const column_alias = `${relation.singularName}_${alias}`;
-          if (row[column_alias]) {
-            instance[relation.singularName][alias] = row[column_alias];
-            delete instance[column_alias];
-          }
-        });
+    try {
+      if (relation.type === "belongsTo") {
+        instance[relation.singularName] = {};
+        if (Array.isArray(relation.relatedAlias)) {
+          relation.relatedAlias.forEach((alias: any) => {
+            const column_alias = `${relation.singularName}_${alias}`;
+            if (row[column_alias]) {
+              instance[relation.singularName][alias] = row[column_alias];
+              delete instance[column_alias];
+            }
+          });
+        }
+      } else if (relation.type === "hasMany") {
+        let query = `SELECT ${relation.relatedAlias.map((i: any) => i)} FROM ${relation.relatedTable} WHERE ${relation.foreignKey} = ${row[relation.primaryKey]}`;
+        const data = await this.__mb_raw(query, [], false);
+        if (data) instance[relation.relatedTable] = data;
+      } else if (relation.type === "hasOne") {
+        let query = `SELECT ${relation.relatedAlias.map((i: any) => i)} FROM ${relation.relatedTable} WHERE ${relation.foreignKey} = ${row[relation.primaryKey]} LIMIT 1`;
+        const data = await this.__mb_raw(query, [], false);
+        if (data) instance[relation.singularName] = data[0];
+      } else if (relation.type === "belongsToMany") {
+        let query_get_ids = `SELECT ${relation.relatedKey} FROM ${relation.pivotTable} WHERE ${relation.foreignKey} = ${row[relation.modelPrimaryKey]}`;
+        const get_ids = await this.__mb_raw(query_get_ids, [], false);
+        const values = get_ids.map((id) => id[relation.relatedKey]).join(", ");
+        let query = `SELECT ${relation.relatedAlias.map((i: any) => i)} FROM ${relation.relatedTable} WHERE ${relation.primaryKey} IN (${values})`;
+        const data = await this.__mb_raw(query, [], false);
+        if (data) instance[relation.relatedTable] = data;
       }
-    } else if (relation.type === "hasMany") {
-      let query = `SELECT ${relation.relatedAlias.map((i: any) => i)} FROM ${relation.relatedTable} WHERE ${relation.foreignKey} = ${row[relation.primaryKey]}`;
-      const data = await this.__mb_raw(query, [], false);
-      if (data) instance[relation.relatedTable] = data;
-    } else if (relation.type === "hasOne") {
-      let query = `SELECT ${relation.relatedAlias.map((i: any) => i)} FROM ${relation.relatedTable} WHERE ${relation.foreignKey} = ${row[relation.primaryKey]} LIMIT 1`;
-      const data = await this.__mb_raw(query, [], false);
-      if (data) instance[relation.singularName] = data[0];
+      return instance;
+    } catch (error: any) {
+      throw new Error(error.message);
     }
-    return instance;
   }
   private static sanitizeArray(values: (string | number | boolean)[]): string[] {
     return values.map((value) => {
