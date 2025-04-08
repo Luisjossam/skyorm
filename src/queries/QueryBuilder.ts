@@ -1,8 +1,8 @@
 import { IQueryBuilder, IQueryBuilderOrderBy, IQueryBuilderWhere, IQueryBuilderWith, IRelations } from "../interfaces/interfaces";
-import Model from "../model";
+import ModelIntermediary from "../model_intermediary";
 
-class QueryBuilder<TModel extends typeof Model> implements IQueryBuilder {
-  private modelClass: TModel;
+class QueryBuilder<TModel extends typeof ModelIntermediary> implements IQueryBuilder {
+  private readonly modelClass: TModel;
   private relations: IRelations[] = [];
   private conditions: Record<string, any> = {};
   private number_limit: number | null = null;

@@ -813,11 +813,8 @@ abstract class ModelBase {
       }
     } else if (relation.type === "hasMany") {
       let query = `SELECT ${relation.relatedAlias.map((i: any) => i)} FROM ${relation.relatedTable} WHERE ${relation.foreignKey} = ${row[relation.primaryKey]}`;
-
       const data = await this.__mb_raw(query, [], false);
-      if (data) {
-        instance[relation.relatedTable] = data;
-      }
+      if (data) instance[relation.relatedTable] = data;
     }
     return instance;
   }
