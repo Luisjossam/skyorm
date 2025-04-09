@@ -18,6 +18,9 @@
     "sqlite",
     "nodejs"
   ],
+  "bin": {
+    "skyorm": "./dist/cli/skyorm.js"
+  },
   "author": "Luis Martinez",
   "license": "MIT",
   "dependencies": {
