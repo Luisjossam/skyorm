@@ -40,9 +40,11 @@ class Model extends ModelBase {
   static sum(column: string): Promise<number> {
     return this.__mb_sum(column, {});
   }
-
   static raw(query: string, values: (string | number | boolean)[], as_model: boolean = true) {
     return this.__mb_raw(query, values, as_model);
+  }
+  static count() {
+    return this.__mb_count({});
   }
 }
 export default Model as unknown as ModelConstructor;

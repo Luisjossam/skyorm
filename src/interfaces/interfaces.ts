@@ -193,7 +193,10 @@ interface IQBSum {
    */
   sum(column: string): Promise<number>;
 }
-export interface IModelMethods extends IQueryBuilder, IQBSum {
+interface IQBCount {
+  count(): Promise<number>;
+}
+export interface IModelMethods extends IQueryBuilder, IQBSum, IQBCount {
   /**
    * Defines a "belongs to" relationship between the current model and another model.
    * This method establishes a relationship where the current model has a foreign key that points to another model's primary key.
@@ -238,7 +241,7 @@ export interface IModelMethods extends IQueryBuilder, IQBSum {
    */
   raw(query: string, values: (string | number | boolean)[], as_model?: boolean): Promise<any[]>;
 }
-export interface IQueryBuilderWhere extends Omit<IQueryBuilder, "where" | "find">, IQBSum {
+export interface IQueryBuilderWhere extends Omit<IQueryBuilder, "where" | "find">, IQBSum, IQBCount {
   /**
    * Checks if at least one record exists in the table using the current query context.
    *

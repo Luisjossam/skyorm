@@ -661,8 +661,6 @@ abstract class ModelBase {
 
       if (whereClause) sql += ` WHERE ${whereClause}`;
       if (options.number_limit) sql += ` LIMIT ${options.number_limit}`;
-      console.log(sql);
-
       const rows = await connection.query(sql, justValues ?? []);
 
       return rows[0][column];
@@ -696,6 +694,26 @@ abstract class ModelBase {
         });
       }
       return response;
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  static async __mb_count(options: Omit<IOptions, "order_by">): Promise<number> {
+    try {
+      const table = this.getTable();
+      const connection = Database.getConnection();
+      let whereClause = null;
+      let justValues = null;
+      const conditions = options.conditions ? options.conditions : null;
+      if (conditions) {
+        whereClause = this.setWhereConditions(conditions);
+        justValues = this.getJustValues(conditions);
+      }
+      let sql = `SELECT COUNT(${this.primaryKey}) AS count FROM ${table}`;
+
+      if (whereClause) sql += ` WHERE ${whereClause}`;
+      const rows = await connection.query(sql, justValues ?? []);
+      return rows[0].count;
     } catch (error: any) {
       throw new Error(error.message);
     }

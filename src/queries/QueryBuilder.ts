@@ -49,6 +49,9 @@ class QueryBuilder<TModel extends typeof ModelIntermediary> implements IQueryBui
   async sum(column: string): Promise<number> {
     return await this.modelClass.__mb_sum(column, { conditions: this.conditions, number_limit: this.number_limit });
   }
+  async count(): Promise<number> {
+    return await this.modelClass.__mb_count({ conditions: this.conditions, number_limit: this.number_limit });
+  }
   with(...relations: string[]): IQueryBuilderWith {
     this.relations = this.modelClass.__mb_with(...relations);
     return this;
