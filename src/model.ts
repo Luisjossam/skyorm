@@ -46,5 +46,11 @@ class Model extends ModelBase {
   static count() {
     return this.__mb_count({});
   }
+  static min(column: string): Promise<any> {
+    return this.__mb_min_max(column, {}, "MIN");
+  }
+  static max(column: string): Promise<any> {
+    return this.__mb_min_max(column, {}, "MAX");
+  }
 }
 export default Model as unknown as ModelConstructor;

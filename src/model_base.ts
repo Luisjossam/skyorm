@@ -718,6 +718,26 @@ abstract class ModelBase {
       throw new Error(error.message);
     }
   }
+  static async __mb_min_max(column: string, options: Omit<IOptions, "order_by">, type: "MIN" | "MAX"): Promise<any> {
+    try {
+      const table = this.getTable();
+      const connection = Database.getConnection();
+      let whereClause = null;
+      let justValues = null;
+      const conditions = options.conditions ? options.conditions : null;
+      if (conditions) {
+        whereClause = this.setWhereConditions(conditions);
+        justValues = this.getJustValues(conditions);
+      }
+      let sql = `SELECT ${type}(${column}) AS ${column} FROM ${table}`;
+
+      if (whereClause) sql += ` WHERE ${whereClause}`;
+      const rows = await connection.query(sql, justValues ?? []);
+      return rows[0];
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
   /**
    * @private
    * Extracts the values from the `where_conditions` object. If the condition value is an array with two elements,

@@ -52,6 +52,12 @@ class QueryBuilder<TModel extends typeof ModelIntermediary> implements IQueryBui
   async count(): Promise<number> {
     return await this.modelClass.__mb_count({ conditions: this.conditions, number_limit: this.number_limit });
   }
+  async min(column: string): Promise<any> {
+    return await this.modelClass.__mb_min_max(column, { conditions: this.conditions, number_limit: this.number_limit }, "MIN");
+  }
+  async max(column: string): Promise<any> {
+    return await this.modelClass.__mb_min_max(column, { conditions: this.conditions, number_limit: this.number_limit }, "MAX");
+  }
   with(...relations: string[]): IQueryBuilderWith {
     this.relations = this.modelClass.__mb_with(...relations);
     return this;

@@ -179,6 +179,8 @@ export interface IQueryBuilder {
    * const users = await User.where({ active: true }).limit(10).get();
    */
   limit(limit: number): IQueryBuilderLimit;
+  min(column: string): Promise<any>;
+  max(column: string): Promise<any>;
 }
 interface IQBSum {
   /**
@@ -257,6 +259,6 @@ export interface IQueryBuilderWhere extends Omit<IQueryBuilder, "where" | "find"
    */
   exist(): Promise<boolean>;
 }
-export interface IQueryBuilderOrderBy extends Omit<IQueryBuilder, "orderBy" | "find" | "getOne"> {}
-export interface IQueryBuilderWith extends Omit<IQueryBuilder, "pluck" | "with"> {}
-export interface IQueryBuilderLimit extends Omit<IQueryBuilder, "getOne" | "find" | "limit" | "paginate"> {}
+export interface IQueryBuilderOrderBy extends Omit<IQueryBuilder, "orderBy" | "find" | "getOne" | "min" | "max"> {}
+export interface IQueryBuilderWith extends Omit<IQueryBuilder, "pluck" | "with" | "min" | "max"> {}
+export interface IQueryBuilderLimit extends Omit<IQueryBuilder, "getOne" | "find" | "limit" | "paginate" | "min" | "max"> {}
