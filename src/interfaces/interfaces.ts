@@ -1,4 +1,4 @@
-import Model from "../model";
+import Model from "../models/Model";
 
 export interface IDatabaseConfig {
   driver: "mysql" | "sqlite" | "postgres";
@@ -22,11 +22,11 @@ export interface IDBDriver {
   close(): Promise<void>;
 }
 export interface IRelations {
-  relatedTable: string;
+  table: string;
   foreignKey: string;
   primaryKey: string;
   singularName: string;
-  relatedAlias: string[];
+  columns: string[];
   type: string;
   pivotTable?: string;
   thisTable?: string;
@@ -41,7 +41,7 @@ export interface IPaginateData {
   lastPage: number;
   count: number;
 }
-export interface IQueryBuilder {
+export interface IQueryBuilder extends IQBMin, IQBMax, IQBOrderBy {
   /**
    * Sets the conditions for filtering data in a query.
    * This method provides a public interface for applying `WHERE` conditions to the query.
@@ -135,6 +135,36 @@ export interface IQueryBuilder {
    */
   with(...relations: string[]): IQueryBuilderWith;
   /**
+   * Retrieves the distinct values of a specific column from the table.
+   * This method acts as a public interface for querying the distinct values of a column.
+   *
+   * @param {string} column - The column name from which to retrieve distinct values.
+   *
+   * @returns {Promise<string[] | number[]>} A promise that resolves to an array of distinct values from the specified column.
+   *
+   * @example
+   * // Example usage:
+   * const values = await Model.pluck("name");
+   * console.log(values);
+   * // Output: ["John", "Alice", "Bob"]
+   */
+  pluck(column: string): Promise<string[]>;
+  /**
+   * Sets a limit on the number of records to retrieve from the query.
+   *
+   * This is useful when you only want to retrieve a specific number of results.
+   * Typically used in conjunction with other query builder methods like `where` or `orderBy`.
+   *
+   * @param {number} limit - The maximum number of records to return.
+   * @returns {QueryBuilder} An instance of the QueryBuilder for method chaining.
+   *
+   * @example
+   * const users = await User.where({ active: true }).limit(10).get();
+   */
+  limit(limit: number): IQueryBuilderLimit;
+}
+interface IQBOrderBy {
+  /**
    * Sets the sorting order for the query result.
    * This method allows developers to define the sorting direction of the query results
    * based on a specified column and sort order (ascending or descending).
@@ -150,37 +180,7 @@ export interface IQueryBuilder {
    * console.log(users);
    * // Output: [{ name: "Alice", age: 20 }, { name: "John", age: 25 }]
    */
-  orderBy(column: string, sort: "asc" | "desc"): IQueryBuilderOrderBy;
-  /**
-   * Retrieves the distinct values of a specific column from the table.
-   * This method acts as a public interface for querying the distinct values of a column.
-   *
-   * @param {string} column - The column name from which to retrieve distinct values.
-   *
-   * @returns {Promise<string[] | number[]>} A promise that resolves to an array of distinct values from the specified column.
-   *
-   * @example
-   * // Example usage:
-   * const values = await Model.pluck("name");
-   * console.log(values);
-   * // Output: ["John", "Alice", "Bob"]
-   */
-  pluck(column: string): Promise<any>;
-  /**
-   * Sets a limit on the number of records to retrieve from the query.
-   *
-   * This is useful when you only want to retrieve a specific number of results.
-   * Typically used in conjunction with other query builder methods like `where` or `orderBy`.
-   *
-   * @param {number} limit - The maximum number of records to return.
-   * @returns {QueryBuilder} An instance of the QueryBuilder for method chaining.
-   *
-   * @example
-   * const users = await User.where({ active: true }).limit(10).get();
-   */
-  limit(limit: number): IQueryBuilderLimit;
-  min(column: string): Promise<any>;
-  max(column: string): Promise<any>;
+  orderBy(column: string, sort: "ASC" | "DESC"): IQueryBuilderOrderBy;
 }
 interface IQBSum {
   /**
@@ -193,11 +193,34 @@ interface IQBSum {
    * @example
    * const total = await User.where({ active: true }).sum("balance");
    */
-  sum(column: string): Promise<number>;
+  sum(column: string, conditions?: Record<string, any>, alias?: string): IQueryBuilderSum;
 }
 interface IQBCount {
-  count(): Promise<number>;
+  count(column?: string, conditions?: Record<string, any>, alias?: string): IQueryBuilderCount;
 }
+interface IQBMin {
+  min(column: string, conditions?: Record<string, any>, alias?: string): IQueryBuilderMin;
+}
+interface IQBMax {
+  max(column: string, conditions?: Record<string, any>, alias?: string): IQueryBuilderMax;
+}
+interface IQBGet {
+  get(): Promise<Record<string, any>[]>;
+}
+interface IQBAvg {
+  avg(column: string, conditions?: Record<string, any>, alias?: string): IQueryBuilderAvg;
+}
+interface IQBGroupBy {
+  groupBy(...columns: string[]): Promise<any>;
+}
+interface IQBHaving {
+  having(conditions: Record<string, any>): IQueryBuilderHaving;
+}
+interface IQBFunctionsAdded extends IQBMin, IQBMax, IQBAvg, IQBCount, IQBSum, IQBGet, IQBGroupBy, IQBOrderBy, IQBHaving {}
+export interface IQueryBuilderMin extends IQBFunctionsAdded {}
+export interface IQueryBuilderMax extends IQBFunctionsAdded {}
+export interface IQueryBuilderCount extends IQBFunctionsAdded {}
+export interface IQueryBuilderAvg extends IQBFunctionsAdded {}
 export interface IModelMethods extends IQueryBuilder, IQBSum, IQBCount {
   /**
    * Defines a "belongs to" relationship between the current model and another model.
@@ -243,7 +266,8 @@ export interface IModelMethods extends IQueryBuilder, IQBSum, IQBCount {
    */
   raw(query: string, values: (string | number | boolean)[], as_model?: boolean): Promise<any[]>;
 }
-export interface IQueryBuilderWhere extends Omit<IQueryBuilder, "where" | "find">, IQBSum, IQBCount {
+export interface IQueryBuilderHaving extends Omit<IQBFunctionsAdded, "get">, IQBHaving {}
+export interface IQueryBuilderWhere extends Omit<IQueryBuilder, "find">, IQBSum, IQBCount, IQBAvg, IQBMin, IQBMax, IQBGroupBy {
   /**
    * Checks if at least one record exists in the table using the current query context.
    *
@@ -258,7 +282,14 @@ export interface IQueryBuilderWhere extends Omit<IQueryBuilder, "where" | "find"
    * }
    */
   exist(): Promise<boolean>;
+  orWhere(conditions: Record<string, any>): IQueryBuilderOrWhere;
 }
-export interface IQueryBuilderOrderBy extends Omit<IQueryBuilder, "orderBy" | "find" | "getOne" | "min" | "max"> {}
+export interface IQueryBuilderOrWhere extends IQueryBuilderWhere {}
+export interface IQueryBuilderOrderBy extends Omit<IQueryBuilder, "orderBy" | "find" | "getOne" | "min" | "max">, IQBGroupBy, IQBHaving {}
 export interface IQueryBuilderWith extends Omit<IQueryBuilder, "pluck" | "with" | "min" | "max"> {}
 export interface IQueryBuilderLimit extends Omit<IQueryBuilder, "getOne" | "find" | "limit" | "paginate" | "min" | "max"> {}
+export interface IQueryBuilderSum extends IQBFunctionsAdded {}
+export interface IQueryArray {
+  queries: string[];
+  values: (string | number | boolean)[];
+}
