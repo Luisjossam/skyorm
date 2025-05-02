@@ -74,10 +74,12 @@ class QueryBuilder {
     return this;
   }
   orderBy(column: string, sort: "ASC" | "DESC") {
+    if (!column) throw new TypeError(`The "column" value must be a string. Received: "${column}"`);
     if (sort !== "ASC" && sort !== "DESC") {
       throw new TypeError(`The "sort" value must be "ASC" or "DESC". Received: "${sort}"`);
     }
-    this.order_by = { column, sort, default: false };
+    const columnName = /^[^.]+\./.test(column) ? column : `${this.modelBase.getTable()}.${column}`;
+    this.order_by = { column: columnName, sort, default: false };
     return this;
   }
   with(...relations: string[]): IQueryBuilderWith {
@@ -218,7 +220,7 @@ class QueryBuilder {
       if (this.relations.length > 1) sql += ` ${this.relations[1]}`;
       if (this.wheres.queries.length > 0) sql += ` WHERE ${this.wheres.queries.join(" AND ")}`;
       if (this.orWheres.queries.length > 0) sql += ` OR ${this.orWheres.queries.join(" OR ")}`;
-      sql += ` ORDER BY ${this.modelBase.getTable()}.${this.order_by.column} ${this.order_by.sort}`;
+      sql += ` ORDER BY ${this.order_by.column} ${this.order_by.sort}`;
       if (this.limit_value) sql += ` LIMIT ${this.limit_value}`;
       const rows = await connection.query(sql, [...this.wheres.values, ...this.orWheres.values]);
       const instances = await Promise.all(
@@ -303,7 +305,7 @@ class QueryBuilder {
       const connection = Database.getConnection();
       let sql = `SELECT ${value} FROM ${this.modelBase.getTable()}`;
       if (this.wheres.queries.length > 0) sql += ` WHERE ${this.wheres.queries.join(" AND ")}`;
-      sql += ` ORDER BY ${this.modelBase.getTable()}.${this.order_by.column} ${this.order_by.sort}`;
+      sql += ` ORDER BY ${this.order_by.column} ${this.order_by.sort}`;
       if (this.limit_value) sql += ` LIMIT ${this.limit_value}`;
       const rows = await connection.query(sql, this.wheres.values ?? []);
       return rows.map((row: any) => row[value]);
@@ -328,7 +330,7 @@ class QueryBuilder {
       if (this.relations.length > 1) sql += ` ${this.relations[1]}`;
       if (this.wheres.queries.length > 0) sql += ` WHERE ${this.wheres.queries.join(" AND ")}`;
       const offset = (current_page - 1) * per_page;
-      sql += ` ORDER BY ${this.modelBase.getTable()}.${this.order_by.column} ${this.order_by.sort}`;
+      sql += ` ORDER BY ${this.order_by.column} ${this.order_by.sort}`;
       sql += ` LIMIT ?, ?`;
       const rows = await connection.query(
         sql,
@@ -378,11 +380,15 @@ class QueryBuilder {
   }
   async groupBy(...columns: string[]): Promise<any[]> {
     try {
+      if (columns.length === 0) throw new Error("You must provide at least one column to group by.");
       const connection = Database.getConnection();
       let columnAliases: string[] = [];
+      let relation_columns: string[] = [];
       columns.forEach((column) => {
-        if (column === "*") {
-          columnAliases.push(`${this.modelBase.getTable()}.*`);
+        if (column === "*") throw new Error("You cannot use '*' in groupBy method.");
+        if (/^[^.]+\./.test(column)) {
+          columnAliases.push(`${column} AS ${column.replace(".", "_")}`);
+          relation_columns.push(column);
         } else {
           columnAliases.push(`${this.modelBase.getTable()}.${column}`);
         }
@@ -394,9 +400,26 @@ class QueryBuilder {
       if (this.min_columns.queries.length > 0) sql += `, ${this.min_columns.queries.join(", ")}`;
       if (this.max_columns.queries.length > 0) sql += `, ${this.max_columns.queries.join(", ")}`;
       sql += ` FROM ${this.modelBase.getTable()}`;
+      if (relation_columns.length > 0) {
+        const relations = this.modelBase.__with(...relation_columns.map((column) => column.split(".")[0]));
+        let join = "";
+        relations.forEach((relation) => {
+          relation.columns.forEach((i) => {
+            //sql += `, ${relation.table}.${i} AS ${relation.singularName}_${i}`;
+            join = ` JOIN ${relation.table} ON ${this.modelBase.getTable()}.${relation.foreignKey} = ${relation.table}.${relation.primaryKey}`;
+          });
+        });
+        sql += ` ${join}`;
+      }
       if (this.wheres.queries.length > 0) sql += ` WHERE ${this.wheres.queries.join(" AND ")}`;
       if (this.orWheres.queries.length > 0) sql += ` OR ${this.orWheres.queries.join(" OR ")}`;
-      sql += ` GROUP BY ${columnAliases.join(", ")}`;
+      const groupByColumns = columnAliases.map((column) => {
+        const parts = column.split("AS");
+        return parts[0].trim();
+      });
+      console.log(groupByColumns);
+
+      sql += ` GROUP BY ${groupByColumns.join(", ")}`;
 
       let having_values: (string | number | boolean)[] = [];
       if (this.having_values.length > 0) {
@@ -404,7 +427,7 @@ class QueryBuilder {
         having_values = havings.values;
         sql += ` HAVING ${havings.query}`;
       }
-      if (!this.order_by.default) sql += ` ORDER BY ${this.modelBase.getTable()}.${this.order_by.column} ${this.order_by.sort}`;
+      if (!this.order_by.default) sql += ` ORDER BY ${this.order_by.column} ${this.order_by.sort}`;
       if (this.limit_value) sql += ` LIMIT ${this.limit_value}`;
       console.log(sql);
 
