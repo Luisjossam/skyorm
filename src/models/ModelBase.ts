@@ -99,5 +99,19 @@ abstract class ModelBase {
       throw new Error(error.message);
     }
   }
+  private static sanitizeArray(values: (string | number | boolean)[]): string[] {
+    return values.map((value) => {
+      if (typeof value === "string") {
+        return value
+          .replace(/[^\w\s]/gi, "")
+          .replace(/'/g, "\\'")
+          .replace(/"/g, '\\"')
+          .trim();
+      }
+      if (typeof value === "number") return value.toString();
+      if (typeof value === "boolean") return value ? "true" : "false";
+      return value;
+    });
+  }
 }
 export default ModelBase;

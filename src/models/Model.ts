@@ -56,5 +56,11 @@ class Model extends ModelBase {
   static avg(column: string, conditions?: Record<string, any>, alias?: string): IQueryBuilderAvg {
     return new QueryBuilder(this).avg(column, conditions, alias);
   }
+  static groupBy(...columns: string[]): Promise<any[]> {
+    return new QueryBuilder(this).groupBy(...columns);
+  }
+  static raw(query: string, values: (string | number | boolean)[], as_model: boolean = true): Promise<any[]> {
+    return this.__mb_raw(query, values, as_model);
+  }
 }
 export default Model;

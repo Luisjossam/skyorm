@@ -211,7 +211,7 @@ interface IQBAvg {
   avg(column: string, conditions?: Record<string, any>, alias?: string): IQueryBuilderAvg;
 }
 interface IQBGroupBy {
-  groupBy(...columns: string[]): Promise<any>;
+  groupBy(...columns: string[]): Promise<any[]>;
 }
 interface IQBHaving {
   having(conditions: Record<string, any>): IQueryBuilderHaving;
