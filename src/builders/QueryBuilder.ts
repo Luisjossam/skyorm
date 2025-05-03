@@ -471,8 +471,19 @@ class QueryBuilder {
       throw new Error(error.message);
     }
   }
-  async update(pk: string | number, data: Record<string, any>, conn: IDBDriver): Promise<{ status: boolean; message: string }> {
+  async update(pk: string | number, data: Record<string, any>, conn: IDBDriver | null): Promise<{ status: boolean; message: string }> {
     try {
+      const primaryKey = this.modelBase.getPrimaryKey();
+      const hasWhereOnPK = this.wheres.queries.some((q) => q.includes(`${primaryKey} =`));
+      if (hasWhereOnPK) {
+        throw new Error(
+          `Conflicting conditions: both a primary key (${pk}) and a where("${primaryKey}") clause were provided. Remove the "${primaryKey}" condition in the where method`,
+        );
+      }
+
+      const exist = await this.modelBase.__mb_raw(`SELECT ${primaryKey} FROM ${this.modelBase.getTable()} WHERE ${primaryKey} = ?`, [pk], false);
+      if (exist[0].length === 0) throw new Error(`There is no record to update, check the value of your PK: Received: ${pk}`);
+
       if (!data) throw new Error("To update a register you must provide data.");
       const connection = conn ?? Database.getConnection();
       const keys = Object.keys(data);

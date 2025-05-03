@@ -69,5 +69,8 @@ class Model extends ModelBase {
   static create(data: Record<string, any>): Promise<any> {
     return new QueryBuilder(this).create(data, this.getTransactionConn());
   }
+  static update(pk: string | number, data: Record<string, any>) {
+    return new QueryBuilder(this).update(pk, data, this.getTransactionConn());
+  }
 }
 export default Model as unknown as ModelConstructor;
