@@ -3,13 +3,14 @@ import mysql from "mysql2/promise";
 import { Client as PgClient } from "pg";
 import sqlite3 from "sqlite3";
 import { open, Database as SQLiteDatabase } from "sqlite";
-import MySqlDriver from "../drivers/MySqlAdapter";
+import MySqlDriver from "../adapters/MySqlAdapter";
 import fs from "fs";
 
 type DBConnection = mysql.Connection | PgClient | SQLiteDatabase;
 
 class Database {
-  private static connection: any;
+  private static connection: IDBDriver;
+  private static driver: "mysql" | "postgres" | "sqlite";
   /**
    * Connects to a database using the provided configuration.
    *
@@ -44,40 +45,27 @@ class Database {
         if (!fs.existsSync(config)) {
           throw new Error("Database configuration file does not exist");
         }
-        const info: IDatabaseConfig = JSON.parse(
-          fs.readFileSync(config, "utf-8")
-        );
+        const info: IDatabaseConfig = JSON.parse(fs.readFileSync(config, "utf-8"));
         const expectedKeys = ["driver", "host", "database", "user", "password"];
         const optionalKeys = ["port", "filepath"];
         const allValidKeys = [...expectedKeys, ...optionalKeys];
         const hasAllKeys = expectedKeys.every((key) => key in info);
-        const hasOnlyValidKeys = Object.keys(info).every((key) =>
-          allValidKeys.includes(key)
-        );
+        const hasOnlyValidKeys = Object.keys(info).every((key) => allValidKeys.includes(key));
         const typesAreCorrect =
           typeof info.driver === "string" &&
           typeof info.host === "string" &&
           typeof info.database === "string" &&
           typeof info.user === "string" &&
           typeof info.password === "string";
-        const portIsValid =
-          info.port === undefined || typeof info.port === "number";
-        const filepathIsValid =
-          info.filepath === undefined || typeof info.filepath === "string";
-        if (
-          hasAllKeys &&
-          hasOnlyValidKeys &&
-          typesAreCorrect &&
-          portIsValid &&
-          filepathIsValid
-        ) {
+        const portIsValid = info.port === undefined || typeof info.port === "number";
+        const filepathIsValid = info.filepath === undefined || typeof info.filepath === "string";
+        if (hasAllKeys && hasOnlyValidKeys && typesAreCorrect && portIsValid && filepathIsValid) {
           database_info = info;
         } else {
-          throw new Error(
-            "The contents of the file do not contain a valid object"
-          );
+          throw new Error("The contents of the file do not contain a valid object");
         }
       }
+      this.driver = database_info.driver;
       switch (database_info.driver) {
         case "mysql":
           this.connection = new MySqlDriver({
@@ -90,19 +78,19 @@ class Database {
           await this.connection.connect();
           break;
         case "postgres":
-          this.connection = new PgClient({
+          /* this.connection = new PgClient({
             host: database_info.host,
             user: database_info.user,
             password: database_info.password,
             database: database_info.database,
           });
-          await this.connection.connect();
+          await this.connection.connect(); */
           break;
         case "sqlite":
-          this.connection = await open({
+          /*  this.connection = await open({
             filename: database_info.filepath ?? ":memory:",
             driver: sqlite3.Database,
-          });
+          }); */
           break;
         default:
           throw new Error("Unsupported database driver");
@@ -116,6 +104,40 @@ class Database {
       throw new Error("Database not connected");
     }
     return this.connection;
+  }
+  static rollback() {
+    switch (this.driver) {
+      case "mysql":
+        return this.connection.rollback();
+      default:
+        break;
+    }
+  }
+  static beginTransaction() {
+    switch (this.driver) {
+      case "mysql":
+        return this.connection.beginTransaction();
+
+      default:
+        break;
+    }
+  }
+  static commit() {
+    switch (this.driver) {
+      case "mysql":
+        return this.connection.commit();
+
+      default:
+        break;
+    }
+  }
+  static close() {
+    switch (this.driver) {
+      case "mysql":
+        return this.connection.close();
+      default:
+        break;
+    }
   }
 }
 

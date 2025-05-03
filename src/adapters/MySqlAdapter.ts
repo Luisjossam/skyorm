@@ -17,6 +17,9 @@ class MySqlDriver implements IDBDriver {
     this.database = options.database;
     this.port = options.port ?? 3306;
   }
+  getConnection() {
+    return this.connection;
+  }
   async connect() {
     this.connection = await mysql.createConnection({
       host: this.host,
@@ -27,18 +30,36 @@ class MySqlDriver implements IDBDriver {
     });
   }
 
-  async query<T = any>(sql: string, params: any[] = []): Promise<T[]> {
+  async query<T = any>(sql: string, params: any[] = []): Promise<any> {
     if (!this.connection) {
       throw new Error("Database not connected");
     }
-    const [rows] = await this.connection.execute<RowDataPacket[]>(sql, params);
-    return rows as T[];
+    const rows = await this.connection.execute<RowDataPacket[]>(sql, params);
+    return rows;
   }
 
   async close() {
     if (this.connection) {
       await this.connection.end();
     }
+  }
+  async beginTransaction(): Promise<void> {
+    if (!this.connection) {
+      throw new Error("Database not connected");
+    }
+    await this.connection.beginTransaction();
+  }
+  async commit(): Promise<void> {
+    if (!this.connection) {
+      throw new Error("Database not connected");
+    }
+    await this.connection.commit();
+  }
+  async rollback(): Promise<void> {
+    if (!this.connection) {
+      throw new Error("Database not connected");
+    }
+    await this.connection.rollback();
   }
 }
 export default MySqlDriver;

@@ -1,3 +1,4 @@
+import CreateInstance from "../models/CreateInstance";
 import Model from "../models/Model";
 
 export interface IDatabaseConfig {
@@ -20,6 +21,9 @@ export interface IDBDriver {
   connect(): Promise<void>;
   query<T = any>(sql: string, params?: any[]): Promise<T[]>;
   close(): Promise<void>;
+  rollback(): Promise<void>;
+  beginTransaction(): Promise<void>;
+  commit(): Promise<void>;
 }
 export interface IRelations {
   table: string;
@@ -41,7 +45,7 @@ export interface IPaginateData {
   lastPage: number;
   count: number;
 }
-export interface IQueryBuilder extends IQBMin, IQBMax, IQBOrderBy {
+export interface IQueryBuilder extends IQBMin, IQBMax, IQBSum, IQBOrderBy, IQBCount {
   /**
    * Sets the conditions for filtering data in a query.
    * This method provides a public interface for applying `WHERE` conditions to the query.
@@ -216,12 +220,13 @@ interface IQBGroupBy {
 interface IQBHaving {
   having(conditions: Record<string, any>): IQueryBuilderHaving;
 }
+
 interface IQBFunctionsAdded extends IQBMin, IQBMax, IQBAvg, IQBCount, IQBSum, IQBGet, IQBGroupBy, IQBOrderBy, IQBHaving {}
 export interface IQueryBuilderMin extends IQBFunctionsAdded {}
 export interface IQueryBuilderMax extends IQBFunctionsAdded {}
 export interface IQueryBuilderCount extends IQBFunctionsAdded {}
 export interface IQueryBuilderAvg extends IQBFunctionsAdded {}
-export interface IModelMethods extends IQueryBuilder, IQBSum, IQBCount {
+export interface IModel extends IQueryBuilder {
   /**
    * Defines a "belongs to" relationship between the current model and another model.
    * This method establishes a relationship where the current model has a foreign key that points to another model's primary key.
@@ -265,6 +270,11 @@ export interface IModelMethods extends IQueryBuilder, IQBSum, IQBCount {
    * console.log(plainProducts); // Output will be a plain JSON array.
    */
   raw(query: string, values: (string | number | boolean)[], as_model?: boolean): Promise<any[]>;
+  create(data: Record<string, any>): Promise<CreateInstance>;
+}
+export interface ICreate {
+  //update(data: Record<string, any>): Promise<any>;
+  primaryKeyValue(): string | number | null;
 }
 export interface IQueryBuilderHaving extends Omit<IQBFunctionsAdded, "get">, IQBHaving {}
 export interface IQueryBuilderWhere extends Omit<IQueryBuilder, "find">, IQBSum, IQBCount, IQBAvg, IQBMin, IQBMax, IQBGroupBy {

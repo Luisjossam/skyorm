@@ -1,6 +1,7 @@
 import ModelBase from "./ModelBase";
 import QueryBuilder from "../builders/QueryBuilder";
 import {
+  IModel,
   IPaginateData,
   IQueryBuilderAvg,
   IQueryBuilderCount,
@@ -10,6 +11,9 @@ import {
   IQueryBuilderWhere,
   IQueryBuilderWith,
 } from "../interfaces/interfaces";
+type ModelConstructor = {
+  new (...args: any[]): ModelBase;
+} & IModel;
 class Model extends ModelBase {
   constructor(table: string) {
     super(table);
@@ -62,5 +66,8 @@ class Model extends ModelBase {
   static raw(query: string, values: (string | number | boolean)[], as_model: boolean = true): Promise<any[]> {
     return this.__mb_raw(query, values, as_model);
   }
+  static create(data: Record<string, any>): Promise<any> {
+    return new QueryBuilder(this).create(data, this.getTransactionConn());
+  }
 }
-export default Model;
+export default Model as unknown as ModelConstructor;
