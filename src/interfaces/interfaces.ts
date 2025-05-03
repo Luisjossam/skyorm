@@ -220,13 +220,15 @@ interface IQBGroupBy {
 interface IQBHaving {
   having(conditions: Record<string, any>): IQueryBuilderHaving;
 }
-
+interface IQBUpdate {
+  update(pk: string | number, data: Record<string, any>): Promise<{ status: boolean; message: string }>;
+}
 interface IQBFunctionsAdded extends IQBMin, IQBMax, IQBAvg, IQBCount, IQBSum, IQBGet, IQBGroupBy, IQBOrderBy, IQBHaving {}
 export interface IQueryBuilderMin extends IQBFunctionsAdded {}
 export interface IQueryBuilderMax extends IQBFunctionsAdded {}
 export interface IQueryBuilderCount extends IQBFunctionsAdded {}
 export interface IQueryBuilderAvg extends IQBFunctionsAdded {}
-export interface IModel extends IQueryBuilder {
+export interface IModel extends IQueryBuilder, IQBUpdate {
   /**
    * Defines a "belongs to" relationship between the current model and another model.
    * This method establishes a relationship where the current model has a foreign key that points to another model's primary key.
@@ -272,12 +274,8 @@ export interface IModel extends IQueryBuilder {
   raw(query: string, values: (string | number | boolean)[], as_model?: boolean): Promise<any[]>;
   create(data: Record<string, any>): Promise<CreateInstance>;
 }
-export interface ICreate {
-  //update(data: Record<string, any>): Promise<any>;
-  primaryKeyValue(): string | number | null;
-}
 export interface IQueryBuilderHaving extends Omit<IQBFunctionsAdded, "get">, IQBHaving {}
-export interface IQueryBuilderWhere extends Omit<IQueryBuilder, "find">, IQBSum, IQBCount, IQBAvg, IQBMin, IQBMax, IQBGroupBy {
+export interface IQueryBuilderWhere extends Omit<IQueryBuilder, "find">, IQBSum, IQBCount, IQBAvg, IQBMin, IQBMax, IQBGroupBy, IQBUpdate {
   /**
    * Checks if at least one record exists in the table using the current query context.
    *
