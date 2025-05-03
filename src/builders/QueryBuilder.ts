@@ -262,7 +262,7 @@ class QueryBuilder {
       sql += ` FROM ${this.modelBase.getTable()}`;
       if (this.relations.length > 1) sql += ` ${this.relations[1]}`;
       if (this.wheres.queries.length > 0) sql += ` WHERE ${this.wheres.queries.join(" AND ")}`;
-      const rows = await connection.query(sql, this.wheres.values ?? []);
+      const [rows] = await connection.query(sql, this.wheres.values ?? []);
       let instance_relation = rows.length ? Object.create(this.modelBase.prototype) : null;
       if (!instance_relation) return null;
       Object.assign(instance_relation, rows[0]);
@@ -313,7 +313,7 @@ class QueryBuilder {
       if (this.wheres.queries.length > 0) sql += ` WHERE ${this.wheres.queries.join(" AND ")}`;
       sql += ` ORDER BY ${this.order_by.column} ${this.order_by.sort}`;
       if (this.limit_value) sql += ` LIMIT ${this.limit_value}`;
-      const rows = await connection.query(sql, this.wheres.values ?? []);
+      const [rows] = await connection.query(sql, this.wheres.values ?? []);
       return rows.map((row: any) => row[value]);
     } catch (error: any) {
       throw new Error(error.message);
@@ -435,7 +435,7 @@ class QueryBuilder {
       if (!this.order_by.default) sql += ` ORDER BY ${this.order_by.column} ${this.order_by.sort}`;
       if (this.limit_value) sql += ` LIMIT ${this.limit_value}`;
 
-      const rows = await connection.query(sql, [
+      const [rows] = await connection.query(sql, [
         ...this.avg_values.values,
         ...this.sum_values.values,
         ...this.count_columns.values,
@@ -466,7 +466,25 @@ class QueryBuilder {
       } else {
         this.primary_key_value = result[0].insertId;
       }
-      return new CreateInstance(this.modelBase, this.primary_key_value);
+      return new CreateInstance(this.modelBase, this.primary_key_value, connection);
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  async update(pk: string | number, data: Record<string, any>, conn: IDBDriver): Promise<{ status: boolean; message: string }> {
+    try {
+      if (!data) throw new Error("To update a register you must provide data.");
+      const connection = conn ?? Database.getConnection();
+      const keys = Object.keys(data);
+      const values = Object.values(data);
+      const setClause = keys.map((k) => `${k} = ?`).join(", ");
+      let sql = `UPDATE ${this.modelBase.getTable()} SET ${setClause} WHERE ${this.modelBase.getTable()}.${this.modelBase.getPrimaryKey()} = ?`;
+      if (this.wheres.queries.length > 0) sql += ` AND ${this.wheres.queries.join(" AND ")}`;
+      const [result] = await connection.query<ResultSetHeader>(sql, [...values, pk, ...this.wheres.values]);
+      return {
+        status: result.changedRows > 0,
+        message: result.changedRows === 0 ? "Update failed: no rows were affected. The record may not exist or the data is unchanged." : "",
+      };
     } catch (error: any) {
       throw new Error(error.message);
     }
