@@ -15,6 +15,8 @@ import {
 } from "../interfaces/interfaces";
 import Database from "../database/database";
 import ModelBase from "../models/ModelBase";
+import { ResultSetHeader } from "mysql2";
+import CreateInstance from "../models/CreateInstance";
 const validOperators = [
   "=",
   "!=",
@@ -47,6 +49,7 @@ class QueryBuilder {
   private readonly avg_values: IQueryArray = { queries: [], values: [] };
   private readonly having_values: string[] = [];
   private readonly modelBase: typeof ModelBase;
+  private primary_key_value: string | number | null = null;
   constructor(model: typeof ModelBase) {
     this.modelBase = model;
   }
@@ -197,6 +200,9 @@ class QueryBuilder {
       throw new Error(error.message);
     }
   }
+  primaryKeyValue(): string | number | null {
+    return this.primary_key_value;
+  }
   async get(columns: string[] = ["*"]): Promise<any[]> {
     try {
       const connection = Database.getConnection();
@@ -222,7 +228,7 @@ class QueryBuilder {
       if (this.orWheres.queries.length > 0) sql += ` OR ${this.orWheres.queries.join(" OR ")}`;
       sql += ` ORDER BY ${this.order_by.column} ${this.order_by.sort}`;
       if (this.limit_value) sql += ` LIMIT ${this.limit_value}`;
-      const rows = await connection.query(sql, [...this.wheres.values, ...this.orWheres.values]);
+      const [rows] = await connection.query(sql, [...this.wheres.values, ...this.orWheres.values]);
       const instances = await Promise.all(
         rows.map(async (row: any) => {
           let instance = Object.create(this.modelBase.prototype);
@@ -286,7 +292,7 @@ class QueryBuilder {
       sql += ` FROM ${this.modelBase.getTable()}`;
       if (this.relations.length > 1) sql += ` ${this.relations[1]}`;
       sql += ` WHERE ${this.modelBase.getTable()}.${this.modelBase.getPrimaryKey()} = ?`;
-      const rows = await connection.query(sql, [value]);
+      const [rows] = await connection.query(sql, [value]);
       let instance_relation = rows.length ? Object.create(this.modelBase.prototype) : null;
       if (!instance_relation) return null;
       Object.assign(instance_relation, rows[0]);
@@ -332,7 +338,7 @@ class QueryBuilder {
       const offset = (current_page - 1) * per_page;
       sql += ` ORDER BY ${this.order_by.column} ${this.order_by.sort}`;
       sql += ` LIMIT ?, ?`;
-      const rows = await connection.query(
+      const [rows] = await connection.query(
         sql,
         this.wheres.values ? [...this.wheres.values, offset.toString(), per_page.toString()] : [offset.toString(), per_page.toString()],
       );
@@ -372,7 +378,7 @@ class QueryBuilder {
       let sql = `SELECT ${this.modelBase.getPrimaryKey()} FROM ${this.modelBase.getTable()}`;
       if (this.wheres.queries.length > 0) sql += ` WHERE ${this.wheres.queries.join(" AND ")}`;
       sql += ` LIMIT 1`;
-      const rows = await connection.query(sql, this.wheres.values ?? []);
+      const [rows] = await connection.query(sql, this.wheres.values ?? []);
       return !!rows[0];
     } catch (error: any) {
       throw new Error(error.message);
@@ -417,7 +423,6 @@ class QueryBuilder {
         const parts = column.split("AS");
         return parts[0].trim();
       });
-      console.log(groupByColumns);
 
       sql += ` GROUP BY ${groupByColumns.join(", ")}`;
 
@@ -429,7 +434,6 @@ class QueryBuilder {
       }
       if (!this.order_by.default) sql += ` ORDER BY ${this.order_by.column} ${this.order_by.sort}`;
       if (this.limit_value) sql += ` LIMIT ${this.limit_value}`;
-      console.log(sql);
 
       const rows = await connection.query(sql, [
         ...this.avg_values.values,
@@ -446,6 +450,28 @@ class QueryBuilder {
       throw new Error(error.message);
     }
   }
+  async create(data: Record<string, any>, conn: IDBDriver | null): Promise<CreateInstance> {
+    try {
+      if (!data) throw new Error("To create a new registry you must provide data.");
+      const connection = conn ?? Database.getConnection();
+      const keys = Object.keys(data);
+      const values = Object.values(data);
+      let query = `INSERT INTO ${this.modelBase.getTable()} (${keys.join(",")}) VALUES (${values.map(() => "?").join(", ")})`;
+      const primarykey = this.modelBase.getPrimaryKey();
+      const last_pk_register = data[primarykey];
+      const result = await connection.query<ResultSetHeader>(query, values);
+
+      if (last_pk_register) {
+        this.primary_key_value = last_pk_register;
+      } else {
+        this.primary_key_value = result[0].insertId;
+      }
+      return new CreateInstance(this.modelBase, this.primary_key_value);
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+
   private async createQueryMinMax(connection: IDBDriver, type: "MIN" | "MAX"): Promise<Record<string, any>[]> {
     try {
       const data = type === "MIN" ? this.min_columns : this.max_columns;

@@ -1,8 +1,9 @@
 import pluralize from "pluralize";
-import { IRelations } from "../interfaces/interfaces";
+import { IDBDriver, IRelations } from "../interfaces/interfaces";
 import Database from "../database/database";
 
 abstract class ModelBase {
+  protected static transaction_conn: IDBDriver | null = null;
   protected static primaryKey: string = "id";
   protected table: string;
   static [key: string]: any;
@@ -98,6 +99,12 @@ abstract class ModelBase {
     } catch (error: any) {
       throw new Error(error.message);
     }
+  }
+  static getTransactionConn() {
+    return this.transaction_conn;
+  }
+  static setTransactionConn(conn: IDBDriver) {
+    this.transaction_conn = conn;
   }
   private static sanitizeArray(values: (string | number | boolean)[]): string[] {
     return values.map((value) => {
