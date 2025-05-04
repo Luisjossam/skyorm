@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import mysql from "mysql2/promise";
-import { IDatabaseConfig } from "../interfaces/interfaces";
+import { IDatabaseConfig } from "../interfaces/Interface";
 import Builder from "./Builder";
 dotenv.config();
 class Schema {

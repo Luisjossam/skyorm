@@ -1,22 +1,8 @@
-import {
-  IDBDriver,
-  IPaginateData,
-  IQueryBuilderCount,
-  IQueryBuilderMax,
-  IQueryBuilderMin,
-  IQueryBuilderSum,
-  IQueryBuilderWhere,
-  IQueryBuilderWith,
-  IRelations,
-  IQueryArray,
-  IQueryBuilderAvg,
-  IQueryBuilderOrWhere,
-  IQueryBuilderHaving,
-} from "../interfaces/interfaces";
 import Database from "../database/database";
 import ModelBase from "../models/ModelBase";
 import { ResultSetHeader } from "mysql2";
 import CreateInstance from "../models/CreateInstance";
+import { IPaginateData, IDBDriver, IRelations, IQueryArray } from "../interfaces/Interface";
 const validOperators = [
   "=",
   "!=",
@@ -53,30 +39,34 @@ class QueryBuilder {
   constructor(model: typeof ModelBase) {
     this.modelBase = model;
   }
-  where(conditions: Record<string, any>): IQueryBuilderWhere {
+  where(conditions: Record<string, any>): this {
+    if (!conditions) throw new Error("The object of conditions was not provided in the where method.");
+    if (Object.keys(conditions).length === 0) throw new Error("The object of conditions is empty in the where method.");
     const where_query = this.createWhereConditionsQuery(conditions);
     this.wheres.queries.push(where_query.query);
     this.wheres.values.push(...where_query.values);
     return this;
   }
-  orWhere(conditions: Record<string, any>): IQueryBuilderOrWhere {
+  orWhere(conditions: Record<string, any>): this {
+    if (!conditions) throw new Error("The object of conditions was not provided in the orWhere method.");
+    if (Object.keys(conditions).length === 0) throw new Error("The object of conditions is empty in the orWhere method.");
     if (this.wheres.queries.length === 0) throw new Error("You must use 'where' before 'orWhere'.");
     const where_query = this.createWhereConditionsQuery(conditions, "orWhere");
     this.orWheres.queries.push(where_query.query);
     this.orWheres.values.push(...where_query.values);
     return this;
   }
-  having(conditions: Record<string, any>): IQueryBuilderHaving {
+  having(conditions: Record<string, any>): this {
     this.having_values.push(JSON.stringify(conditions));
     return this;
   }
-  limit(limit: number) {
+  limit(limit: number): this {
     if (typeof limit !== "number" || isNaN(limit) || limit < 0)
       throw new TypeError(`The "limit" value must be a number and positive. Received: "${limit}"`);
     this.limit_value = limit;
     return this;
   }
-  orderBy(column: string, sort: "ASC" | "DESC") {
+  orderBy(column: string, sort: "ASC" | "DESC"): this {
     if (!column) throw new TypeError(`The "column" value must be a string. Received: "${column}"`);
     if (sort !== "ASC" && sort !== "DESC") {
       throw new TypeError(`The "sort" value must be "ASC" or "DESC". Received: "${sort}"`);
@@ -85,7 +75,7 @@ class QueryBuilder {
     this.order_by = { column: columnName, sort, default: false };
     return this;
   }
-  with(...relations: string[]): IQueryBuilderWith {
+  with(...relations: string[]): this {
     const relations_array = this.modelBase.__with(...relations);
     let query = "";
     let left_join = "";
@@ -102,7 +92,7 @@ class QueryBuilder {
     this.relations.push(left_join);
     return this;
   }
-  min(column: string, conditions?: Record<string, any>, alias?: string): IQueryBuilderMin {
+  min(column: string, conditions?: Record<string, any>, alias?: string): this {
     try {
       let query = "MIN(";
       let values: (string | number | boolean)[] = [];
@@ -116,12 +106,12 @@ class QueryBuilder {
       }
       this.min_columns.queries.push(query);
       this.min_columns.values = [...this.min_columns.values, ...values];
-      return this as any;
+      return this;
     } catch (error: any) {
       throw new Error(error.message);
     }
   }
-  max(column: string, conditions?: Record<string, any>, alias?: string): IQueryBuilderMax {
+  max(column: string, conditions?: Record<string, any>, alias?: string): this {
     try {
       let query = "MAX(";
       let values: (string | number | boolean)[] = [];
@@ -140,7 +130,7 @@ class QueryBuilder {
       throw new Error(error.message);
     }
   }
-  count(column: string = "*", conditions?: Record<string, any>, alias?: string): IQueryBuilderCount {
+  count(column: string = "*", conditions?: Record<string, any>, alias?: string): this {
     try {
       let query = `COUNT(`;
       let values: (string | number | boolean)[] = [];
@@ -161,7 +151,7 @@ class QueryBuilder {
       throw new Error(error.message);
     }
   }
-  sum(column: string, conditions?: Record<string, any>, alias?: string): IQueryBuilderSum {
+  sum(column: string, conditions?: Record<string, any>, alias?: string): this {
     try {
       let query = `COALESCE(SUM(`;
       let values: (string | number | boolean)[] = [];
@@ -180,7 +170,7 @@ class QueryBuilder {
       throw new Error(error.message);
     }
   }
-  avg(column: string, conditions?: Record<string, any>, alias?: string): IQueryBuilderAvg {
+  avg(column: string, conditions?: Record<string, any>, alias?: string): this {
     try {
       let query = "COALESCE(AVG(";
       let values: (string | number | boolean)[] = [];
@@ -203,7 +193,7 @@ class QueryBuilder {
   primaryKeyValue(): string | number | null {
     return this.primary_key_value;
   }
-  async get(columns: string[] = ["*"]): Promise<any[]> {
+  async get(columns: string[] = ["*"]): Promise<Record<string, any>> {
     try {
       const connection = Database.getConnection();
       if (this.min_columns.queries.length > 0) return this.createQueryMinMax(connection, "MIN") as any;
@@ -356,7 +346,7 @@ class QueryBuilder {
       );
       let sqlCount = `SELECT COUNT(*) as total FROM ${this.modelBase.getTable()}`;
       if (this.wheres.queries.length > 0) sql += ` WHERE ${this.wheres.queries.join(" AND ")}`;
-      const totalRows = await connection.query(sqlCount, this.wheres.values ?? []);
+      const [totalRows] = await connection.query(sqlCount, this.wheres.values ?? []);
       const total = totalRows[0].total;
       const lastPage = Math.ceil(total / per_page);
 
@@ -482,7 +472,8 @@ class QueryBuilder {
       }
 
       const exist = await this.modelBase.__mb_raw(`SELECT ${primaryKey} FROM ${this.modelBase.getTable()} WHERE ${primaryKey} = ?`, [pk], false);
-      if (exist[0].length === 0) throw new Error(`There is no record to update, check the value of your PK: Received: ${pk}`);
+
+      if (exist.length === 0) throw new Error(`There is no record to update, check the value of your PK: Received: ${pk}`);
 
       if (!data) throw new Error("To update a register you must provide data.");
       const connection = conn ?? Database.getConnection();
@@ -495,6 +486,30 @@ class QueryBuilder {
       return {
         status: result.changedRows > 0,
         message: result.changedRows === 0 ? "Update failed: no rows were affected. The record may not exist or the data is unchanged." : "",
+      };
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  async delete(): Promise<{ status: boolean; message: string }> {
+    return await this._delete(null, null);
+  }
+  async _delete(conn: IDBDriver | null, pk_value?: string | number | null): Promise<{ status: boolean; message: string }> {
+    try {
+      const connection = conn ?? Database.getConnection();
+      if (!pk_value) {
+        if (this.wheres.queries.length === 0) throw new Error("To delete a record you must use the where() method before the delete() method.");
+      }
+      let query = `DELETE FROM ${this.modelBase.getTable()}`;
+      if (pk_value) query += ` WHERE ${this.modelBase.getTable()}.${this.modelBase.getPrimaryKey()} = ?`;
+      if (this.wheres.queries.length > 0) query += ` ${!pk_value ? "WHERE" : "AND"} ${this.wheres.queries.join(", ")}`;
+      const values = [...this.wheres.values];
+      if (pk_value) values.unshift(pk_value);
+      const [result] = await connection.query<ResultSetHeader>(query, values);
+      const status = result.affectedRows > 0;
+      return {
+        status,
+        message: !status ? "Record not found" : "",
       };
     } catch (error: any) {
       throw new Error(error.message);
