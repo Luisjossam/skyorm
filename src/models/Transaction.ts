@@ -1,5 +1,5 @@
 import Database from "../database/database";
-import { IDBDriver } from "../interfaces/interfaces";
+import { IDBDriver } from "../interfaces/Interface";
 import ModelBase from "./ModelBase";
 
 class Transaction {

@@ -1,10 +1,10 @@
-import { IDatabaseConfig, IDBDriver } from "../interfaces/interfaces";
 import mysql from "mysql2/promise";
 import { Client as PgClient } from "pg";
 import sqlite3 from "sqlite3";
 import { open, Database as SQLiteDatabase } from "sqlite";
 import MySqlDriver from "../adapters/MySqlAdapter";
 import fs from "fs";
+import { IDatabaseConfig, IDBDriver } from "../interfaces/Interface";
 
 type DBConnection = mysql.Connection | PgClient | SQLiteDatabase;
 

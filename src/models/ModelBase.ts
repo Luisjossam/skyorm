@@ -1,6 +1,6 @@
 import pluralize from "pluralize";
-import { IDBDriver, IRelations } from "../interfaces/interfaces";
 import Database from "../database/database";
+import { IDBDriver, IRelations } from "../interfaces/Interface";
 
 abstract class ModelBase {
   protected static transaction_conn: IDBDriver | null = null;
@@ -70,7 +70,7 @@ abstract class ModelBase {
       } else if (relation.type === "belongsToMany") {
         let query_get_ids = `SELECT ${relation.relatedKey} FROM ${relation.pivotTable} WHERE ${relation.foreignKey} = ${row[relation.modelPrimaryKey]}`;
         const get_ids = await this.__mb_raw(query_get_ids, [], false);
-        const values = get_ids.map((id) => id[relation.relatedKey]).join(", ");
+        const values = get_ids.map((id: any) => id[relation.relatedKey]).join(", ");
         let query = `SELECT ${relation.relatedAlias.map((i: any) => i)} FROM ${relation.relatedTable} WHERE ${relation.primaryKey} IN (${values})`;
         const data = await this.__mb_raw(query, [], false);
         if (data) instance[relation.relatedTable] = data;
@@ -87,7 +87,7 @@ abstract class ModelBase {
       if (values.length > 0) {
         sanitize = this.sanitizeArray(values);
       }
-      const response = await connection.query(query, sanitize);
+      const [response] = await connection.query(query, sanitize);
       if (asModel) {
         return response.map((row: any) => {
           const instance = Object.create(this.prototype);

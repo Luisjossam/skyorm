@@ -1,10 +1,7 @@
 import QueryBuilder from "../builders/QueryBuilder";
-import { IDBDriver } from "../interfaces/interfaces";
+import { IDBDriver } from "../interfaces/Interface";
 import ModelBase from "./ModelBase";
 
-interface IQueryBuilderWhere {
-  update(data: Record<string, any>): Promise<{ status: boolean; message: string }>;
-}
 class CreateInstance {
   private readonly pk_value: string | number | null = null;
   private readonly modelBase: typeof ModelBase;
@@ -22,6 +19,9 @@ class CreateInstance {
   }
   async update(data: Record<string, any>): Promise<{ status: boolean; message: string }> {
     return new QueryBuilder(this.modelBase).update(this.pk_value as string | number, data, this.connection_transaction);
+  }
+  async delete(): Promise<{ status: boolean; message: string }> {
+    return new QueryBuilder(this.modelBase)._delete(this.connection_transaction, this.pk_value);
   }
 }
 export default CreateInstance;

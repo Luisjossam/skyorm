@@ -1,6 +1,6 @@
 import mysql from "mysql2/promise";
 import { RowDataPacket } from "mysql2";
-import { IDBConnection, IDBDriver } from "../interfaces/interfaces";
+import { IDBConnection, IDBDriver } from "../interfaces/Interface";
 
 class MySqlDriver implements IDBDriver {
   private connection: mysql.Connection | null = null;
