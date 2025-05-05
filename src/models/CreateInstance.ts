@@ -1,8 +1,9 @@
 import QueryBuilder from "../builders/QueryBuilder";
 import { IDBDriver } from "../interfaces/Interface";
 import ModelBase from "./ModelBase";
+import UpdateModel from "./UpdateModel";
 
-class CreateInstance {
+class CreateModel {
   private readonly pk_value: string | number | null = null;
   private readonly modelBase: typeof ModelBase;
   private readonly connection_transaction: IDBDriver;
@@ -14,14 +15,17 @@ class CreateInstance {
   pkValue(): string | number | null {
     return this.pk_value;
   }
-  reload() {
-    return new QueryBuilder(this.modelBase).find(this.pkValue() as string | number);
-  }
-  async update(data: Record<string, any>): Promise<{ status: boolean; message: string }> {
+  async update(data: Record<string, any>): Promise<UpdateModel> {
     return new QueryBuilder(this.modelBase).update(this.pk_value as string | number, data, this.connection_transaction);
   }
   async delete(): Promise<{ status: boolean; message: string }> {
     return new QueryBuilder(this.modelBase)._delete(this.connection_transaction, this.pk_value);
   }
+  async softDelete(): Promise<{ status: boolean; message: string }> {
+    return new QueryBuilder(this.modelBase)._softDelete(this.connection_transaction, this.pk_value);
+  }
+  async getValues(...columns: string[]): Promise<Record<string, any>> {
+    return new QueryBuilder(this.modelBase).recoverValues([...columns], this.pk_value as string | number);
+  }
 }
-export default CreateInstance;
+export default CreateModel;

@@ -257,3 +257,6 @@ export interface ModelExist {
 export interface ModelDelete {
   delete(): Promise<{ status: boolean; message: string }>;
 }
+export interface ModelSoftDelete {
+  softDelete(): Promise<{ status: boolean; message: string }>;
+}

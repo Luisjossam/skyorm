@@ -5,6 +5,7 @@ import { IDBDriver, IRelations } from "../interfaces/Interface";
 abstract class ModelBase {
   protected static transaction_conn: IDBDriver | null = null;
   protected static primaryKey: string = "id";
+  protected static softDeletes: string = "deleted_at";
   protected table: string;
   static [key: string]: any;
   constructor(table: string) {
@@ -15,6 +16,9 @@ abstract class ModelBase {
   }
   static getPrimaryKey() {
     return this.primaryKey;
+  }
+  static getSoftDelete() {
+    return this.softDeletes;
   }
   static getTable() {
     return this.table ?? pluralize(this.name.replace(/Model$/, "").toLowerCase());

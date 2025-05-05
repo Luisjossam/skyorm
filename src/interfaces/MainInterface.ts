@@ -1,5 +1,6 @@
-import CreateInstance from "../models/CreateInstance";
+import CreateModel from "../models/CreateInstance";
 import ModelClass from "../models/Model";
+import UpdateModel from "../models/UpdateModel";
 import {
   ModelFind,
   ModelGet,
@@ -20,6 +21,7 @@ import {
   ModelPaginate as MPag,
   ModelExist as ME,
   ModelDelete as MD,
+  ModelSoftDelete as MSD,
 } from "./Interface";
 
 export interface Model extends MW, ModelGet, ModelFind, MWith, MMin, ML, MP, MPag {
@@ -67,10 +69,10 @@ export interface Model extends MW, ModelGet, ModelFind, MWith, MMin, ML, MP, MPa
    * console.log(plainProducts); // Output will be a plain JSON array.
    */
   raw(query: string, values: (string | number | boolean)[], as_model?: boolean): Promise<any[]>;
-  create(data: Record<string, any>): Promise<CreateInstance>;
-  update(pk: string | number, data: Record<string, any>): Promise<any>;
+  create(data: Record<string, any>): Promise<CreateModel>;
+  update(pk: string | number, data: Record<string, any>): Promise<UpdateModel>;
 }
-export interface ModelWhere extends MW, ModelGet, MS, MMin, MC, MA, MMax, MOB, MWith, MOW, MGO, MH, MGB, MP, MPag, ME, MD {}
+export interface ModelWhere extends MW, ModelGet, MS, MMin, MC, MA, MMax, MOB, MWith, MOW, MGO, MH, MGB, MP, MPag, ME, MD, MSD {}
 export interface ModelSum extends MS, ModelGet, MMin, MC, MA, MW, MMax, MOB, MH, MGB {}
 export interface ModelMin extends MMin, ModelGet, MC, MA, MW, MMax, MOB, MH, MGB {}
 export interface ModelCount extends MC, ModelGet, MA, MS, MMin, MW, MMax, MOB, MH, MGB {}

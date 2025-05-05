@@ -1,8 +1,9 @@
 import Database from "../database/database";
 import ModelBase from "../models/ModelBase";
 import { ResultSetHeader } from "mysql2";
-import CreateInstance from "../models/CreateInstance";
+import CreateModel from "../models/CreateInstance";
 import { IPaginateData, IDBDriver, IRelations, IQueryArray } from "../interfaces/Interface";
+import UpdateModel from "../models/UpdateModel";
 const validOperators = [
   "=",
   "!=",
@@ -440,7 +441,7 @@ class QueryBuilder {
       throw new Error(error.message);
     }
   }
-  async create(data: Record<string, any>, conn: IDBDriver | null): Promise<CreateInstance> {
+  async create(data: Record<string, any>, conn: IDBDriver | null): Promise<CreateModel> {
     try {
       if (!data) throw new Error("To create a new registry you must provide data.");
       const connection = conn ?? Database.getConnection();
@@ -456,12 +457,12 @@ class QueryBuilder {
       } else {
         this.primary_key_value = result[0].insertId;
       }
-      return new CreateInstance(this.modelBase, this.primary_key_value, connection);
+      return new CreateModel(this.modelBase, this.primary_key_value, connection);
     } catch (error: any) {
       throw new Error(error.message);
     }
   }
-  async update(pk: string | number, data: Record<string, any>, conn: IDBDriver | null): Promise<{ status: boolean; message: string }> {
+  async update(pk: string | number, data: Record<string, any>, conn: IDBDriver | null): Promise<UpdateModel> {
     try {
       const primaryKey = this.modelBase.getPrimaryKey();
       const hasWhereOnPK = this.wheres.queries.some((q) => q.includes(`${primaryKey} =`));
@@ -470,23 +471,20 @@ class QueryBuilder {
           `Conflicting conditions: both a primary key (${pk}) and a where("${primaryKey}") clause were provided. Remove the "${primaryKey}" condition in the where method`,
         );
       }
-
-      const exist = await this.modelBase.__mb_raw(`SELECT ${primaryKey} FROM ${this.modelBase.getTable()} WHERE ${primaryKey} = ?`, [pk], false);
+      const keys = Object.keys(data);
+      const values = Object.values(data);
+      const exist = await this.modelBase.__mb_raw(`SELECT ${keys.join(",")} FROM ${this.modelBase.getTable()} WHERE ${primaryKey} = ?`, [pk], false);
 
       if (exist.length === 0) throw new Error(`There is no record to update, check the value of your PK: Received: ${pk}`);
 
       if (!data) throw new Error("To update a register you must provide data.");
       const connection = conn ?? Database.getConnection();
-      const keys = Object.keys(data);
-      const values = Object.values(data);
+
       const setClause = keys.map((k) => `${k} = ?`).join(", ");
       let sql = `UPDATE ${this.modelBase.getTable()} SET ${setClause} WHERE ${this.modelBase.getTable()}.${this.modelBase.getPrimaryKey()} = ?`;
       if (this.wheres.queries.length > 0) sql += ` AND ${this.wheres.queries.join(" AND ")}`;
       const [result] = await connection.query<ResultSetHeader>(sql, [...values, pk, ...this.wheres.values]);
-      return {
-        status: result.changedRows > 0,
-        message: result.changedRows === 0 ? "Update failed: no rows were affected. The record may not exist or the data is unchanged." : "",
-      };
+      return new UpdateModel(pk, result, exist[0], connection, this.modelBase);
     } catch (error: any) {
       throw new Error(error.message);
     }
@@ -503,7 +501,8 @@ class QueryBuilder {
       let query = `DELETE FROM ${this.modelBase.getTable()}`;
       if (pk_value) query += ` WHERE ${this.modelBase.getTable()}.${this.modelBase.getPrimaryKey()} = ?`;
       if (this.wheres.queries.length > 0) query += ` ${!pk_value ? "WHERE" : "AND"} ${this.wheres.queries.join(", ")}`;
-      const values = [...this.wheres.values];
+      if (this.orWheres.queries.length > 0) query += ` OR ${this.orWheres.queries.join(" OR ")}`;
+      const values = [...this.wheres.values, ...this.orWheres.values];
       if (pk_value) values.unshift(pk_value);
       const [result] = await connection.query<ResultSetHeader>(query, values);
       const status = result.affectedRows > 0;
@@ -511,6 +510,39 @@ class QueryBuilder {
         status,
         message: !status ? "Record not found" : "",
       };
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  async softDelete(): Promise<{ status: boolean; message: string }> {
+    return await this._softDelete(null, null);
+  }
+  async _softDelete(conn: IDBDriver | null, pk_value?: string | number | null): Promise<{ status: boolean; message: string }> {
+    try {
+      const connection = conn ?? Database.getConnection();
+      if (!pk_value) {
+        if (this.wheres.queries.length === 0) throw new Error("To delete a record you must use the where() method before the delete() method.");
+      }
+      let query = `UPDATE ${this.modelBase.getTable()} SET ${this.modelBase.getSoftDelete()} = CURRENT_TIMESTAMP`;
+      if (pk_value) query += ` WHERE ${this.modelBase.getPrimaryKey()} = ?`;
+      if (this.wheres.queries.length > 0) query += ` ${!pk_value ? "WHERE" : "AND"} ${this.wheres.queries.join(", ")}`;
+      if (this.orWheres.queries.length > 0) query += ` OR ${this.orWheres.queries.join(" OR ")}`;
+      const values = [...this.wheres.values, ...this.orWheres.values];
+      if (pk_value) values.unshift(pk_value);
+      const [result] = await connection.query<ResultSetHeader>(query, values);
+      const status = result.affectedRows > 0;
+      return {
+        status,
+        message: !status ? "Record not found" : "",
+      };
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  async recoverValues(columns: string[], pk_value: string | number): Promise<any> {
+    try {
+      const result = this.find(pk_value, [...columns]);
+      return result;
     } catch (error: any) {
       throw new Error(error.message);
     }
