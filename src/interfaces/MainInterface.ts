@@ -22,6 +22,7 @@ import {
   ModelExist as ME,
   ModelDelete as MD,
   ModelSoftDelete as MSD,
+  ModelRestore as MRes,
 } from "./Interface";
 
 export interface Model extends MW, ModelGet, ModelFind, MWith, MMin, ML, MP, MPag {
@@ -72,7 +73,7 @@ export interface Model extends MW, ModelGet, ModelFind, MWith, MMin, ML, MP, MPa
   create(data: Record<string, any>): Promise<CreateModel>;
   update(pk: string | number, data: Record<string, any>): Promise<UpdateModel>;
 }
-export interface ModelWhere extends MW, ModelGet, MS, MMin, MC, MA, MMax, MOB, MWith, MOW, MGO, MH, MGB, MP, MPag, ME, MD, MSD {}
+export interface ModelWhere extends MW, ModelGet, MS, MMin, MC, MA, MMax, MOB, MWith, MOW, MGO, MH, MGB, MP, MPag, ME, MD, MSD, MRes {}
 export interface ModelSum extends MS, ModelGet, MMin, MC, MA, MW, MMax, MOB, MH, MGB {}
 export interface ModelMin extends MMin, ModelGet, MC, MA, MW, MMax, MOB, MH, MGB {}
 export interface ModelCount extends MC, ModelGet, MA, MS, MMin, MW, MMax, MOB, MH, MGB {}
@@ -81,5 +82,5 @@ export interface ModelMax extends MMax, MA, MC, ModelGet, MS, MMin, MW, MOB, MH,
 export interface ModelOrderBy extends MW, ModelGet, MS, MMin, MC, MA, MMax, MWith, ML, MGO, MH, MGB, MP, MPag {}
 export interface ModelWith extends MWith, ModelGet, MW, MOB, ML, MGO, MGB, MPag {}
 export interface ModelLimit extends MWith, ModelGet, MW, MOB, MGB, MP {}
-export interface ModelOrWhere extends ModelGet, MS, MMax, MMin, MC, MA, MOB, MWith, MGO, MGB, MP, MPag, MD {}
+export interface ModelOrWhere extends ModelGet, MS, MMax, MMin, MC, MA, MOB, MWith, MGO, MGB, MP, MPag, MD, MSD, MRes {}
 export interface ModelHaving extends MH, MOB, MW, MS, MMin, MMax, MGB {}

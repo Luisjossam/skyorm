@@ -260,3 +260,6 @@ export interface ModelDelete {
 export interface ModelSoftDelete {
   softDelete(): Promise<{ status: boolean; message: string }>;
 }
+export interface ModelRestore {
+  restore(): Promise<boolean>;
+}

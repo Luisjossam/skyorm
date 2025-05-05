@@ -539,6 +539,27 @@ class QueryBuilder {
       throw new Error(error.message);
     }
   }
+  async restore(): Promise<boolean> {
+    return await this._restore(null, null);
+  }
+  async _restore(conn: IDBDriver | null, pk_value?: string | number | null): Promise<boolean> {
+    try {
+      const connection = conn ?? Database.getConnection();
+      if (!pk_value) {
+        if (this.wheres.queries.length === 0) throw new Error("To delete a record you must use the where() method before the delete() method.");
+      }
+      let query = `UPDATE ${this.modelBase.getTable()} SET ${this.modelBase.getSoftDelete()} = NULL`;
+      if (pk_value) query += ` WHERE ${this.modelBase.getPrimaryKey()} = ?`;
+      if (this.wheres.queries.length > 0) query += ` ${!pk_value ? "WHERE" : "AND"} ${this.wheres.queries.join(", ")}`;
+      if (this.orWheres.queries.length > 0) query += ` OR ${this.orWheres.queries.join(" OR ")}`;
+      const values = [...this.wheres.values, ...this.orWheres.values];
+      if (pk_value) values.unshift(pk_value);
+      const [result] = await connection.query<ResultSetHeader>(query, values);
+      return result.affectedRows > 0;
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
   async recoverValues(columns: string[], pk_value: string | number): Promise<any> {
     try {
       const result = this.find(pk_value, [...columns]);

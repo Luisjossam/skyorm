@@ -21,6 +21,9 @@ class CreateModel {
   async delete(): Promise<{ status: boolean; message: string }> {
     return new QueryBuilder(this.modelBase)._delete(this.connection_transaction, this.pk_value);
   }
+  async restore(): Promise<boolean> {
+    return new QueryBuilder(this.modelBase)._restore(this.connection_transaction, this.pk_value);
+  }
   async softDelete(): Promise<{ status: boolean; message: string }> {
     return new QueryBuilder(this.modelBase)._softDelete(this.connection_transaction, this.pk_value);
   }
