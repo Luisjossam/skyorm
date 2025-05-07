@@ -4,9 +4,13 @@ const args = process.argv.slice(2);
 
 if (args.length === 0) {
   console.log("Comandos disponibles:");
-  console.log("         --help");
-  console.log("         create:migration <name> pivot(optional)");
+  console.log("     [---- MIGRATIONS ----]");
+  console.log("         create:migration <name> --pivot(optional) --ext=<ts,js>(opcional)");
   console.log("         migrate:run --config=<filename>(optional)");
+  console.log("");
+  console.log("     [---- MODELS ----]");
+  console.log("         create:model <name> --ext=<ts,js>(optional)");
+
   process.exit(0);
 }
 
@@ -21,6 +25,6 @@ switch (command) {
     require("./commands/migrate_run")(rest);
     break;
   default:
-    console.error(`Comando desconocido: ${command}`);
+    console.error(`Unknown command: ${command}`);
     process.exit(1);
 }

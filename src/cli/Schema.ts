@@ -144,5 +144,6 @@ class Schema {
       throw new Error(error.message);
     }
   }
+  async drop(name_table: string) {}
 }
 export default Schema;
