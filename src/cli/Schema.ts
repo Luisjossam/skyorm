@@ -3,11 +3,14 @@ import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
 import mysql from "mysql2/promise";
-import { IDatabaseConfig } from "../interfaces/Interface";
+import { IDatabaseConfig, IDBDriver } from "../interfaces/Interface";
 import Builder from "./Builder";
+import Database from "../database/database";
 dotenv.config();
 class Schema {
   private filename_db_config: string = "database-config.json";
+  private filename: string = "";
+  private batch_number: number = 0;
   private database_values: IDatabaseConfig = {
     driver: "mysql",
     database: "",
@@ -17,40 +20,45 @@ class Schema {
     port: 3306,
     filepath: "",
   };
-  constructor(options: string[]) {
+  constructor(options: string[], filename: string, batch_number: number) {
     options.forEach((i) => {
       if (i.startsWith("--config=")) {
         this.filename_db_config = i.split("=")[1];
       }
     });
+    this.filename = filename;
+    this.batch_number = batch_number;
   }
   async create(name_table: string, callback: (table: Builder) => void) {
     try {
-      const verify_database_config = this.verify_database_config();
-      if (!verify_database_config) {
-        console.log(`❌ No specified database configuration file exists or environment variables are not complete.\n`);
-        console.log("   Visit the documentation to learn more about database configuration and migrations.");
-        process.exit(1);
-      }
       this.set_database_values();
-      const exist_database = await this.verify_if_exist_database();
-      if (!exist_database) {
-        console.error(`\n❌ There is no database, check if it exists or if you have a typo error: ${this.database_values.database}\n`);
-        process.exit(1);
+      await Database.connect(this.database_values);
+      const connection = Database.getConnection();
+      try {
+        const exist_database = await this.verify_if_exist_database();
+        if (!exist_database) {
+          throw new Error(`❌ Database not found: ${this.database_values.database}`);
+        }
+        const exist_table = await this.verify_if_exist_table(name_table, connection);
+        if (!exist_table) {
+          const builder = new Builder(name_table, this.database_values.driver);
+          callback(builder);
+          const sql = builder.sql();
+          await connection.query(sql, []);
+        } else {
+        }
+        await this.register_migration(this.filename, connection);
+        console.log("✅ Migration executed correctly.");
+      } catch (error: any) {
+        throw new Error(error.message);
+      } finally {
+        connection.close();
       }
-      const exist_table = await this.verify_if_exist_table(name_table);
-      if (!exist_table) {
-        const builder = new Builder(name_table, this.database_values.driver);
-        callback(builder);
-        const sql = builder.sql();
-        console.log(sql);
-      } else {
-      }
-      console.log("✅ Migration executed correctly.");
     } catch (error: any) {
       throw new Error(error.message);
     }
   }
+  async drop(name_table: string) {}
   private verify_env(): boolean {
     try {
       const variables = ["SKYORM_DRIVER", "SKYORM_HOST", "SKYORM_DATABASE", "SKYORM_USER", "SKYORM_PORT"];
@@ -65,7 +73,10 @@ class Schema {
       throw error;
     }
   }
-  private verify_database_config(): boolean {
+  get_database_values() {
+    return this.database_values;
+  }
+  verify_database_config(): boolean {
     try {
       const exist_env = this.verify_env();
       if (!exist_env) {
@@ -77,7 +88,7 @@ class Schema {
       throw new Error(error.message);
     }
   }
-  private set_database_values(): void {
+  set_database_values(): void {
     try {
       if (this.verify_env()) {
         this.database_values = {
@@ -124,26 +135,62 @@ class Schema {
       throw new Error(error.message);
     }
   }
-  private async verify_if_exist_table(name_table: string): Promise<boolean> {
+  private async verify_if_exist_table(name_table: string, conn: IDBDriver): Promise<boolean> {
     try {
-      const { driver, filepath, database, ...rest_values_db } = this.database_values;
-      switch (driver) {
-        case "mysql": {
-          const conn = await mysql.createConnection(rest_values_db);
-          const [rows]: any[] = await conn.execute("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?", [
-            database,
-            name_table,
-          ]);
-          await conn.end();
-          return rows.length > 0;
+      const [result] = await conn.query("SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?", [
+        this.database_values.database,
+        name_table,
+      ]);
+      return result.length > 0;
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  async exist_migrations_table_and_create_if_not_exist(conn: IDBDriver): Promise<void> {
+    try {
+      const result = await this.verify_if_exist_table("migrations", conn);
+      if (!result) {
+        switch (this.database_values.driver) {
+          case "mysql":
+            await conn.query(`CREATE TABLE migrations (
+              id INT AUTO_INCREMENT PRIMARY KEY,
+              name VARCHAR(255) NOT NULL,
+              batch INT NOT NULL,
+              migrated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+              );`);
+            break;
         }
-        default:
-          throw new Error("Unsupported driver");
       }
     } catch (error: any) {
       throw new Error(error.message);
     }
   }
-  async drop(name_table: string) {}
+  private async register_migration(filename: string, conn: IDBDriver): Promise<void> {
+    try {
+      await conn.query(`INSERT INTO migrations (name, batch)VALUES(?,?)`, [filename, this.batch_number]);
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  async migration_execute(filename: string, conn: IDBDriver): Promise<boolean> {
+    try {
+      const [result] = await conn.query("SELECT id FROM migrations WHERE name = ?", [filename]);
+      return result.length > 0;
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  async get_last_batch(conn: IDBDriver): Promise<number> {
+    try {
+      const [get_last_batch] = await conn.query("SELECT batch FROM migrations ORDER BY batch DESC LIMIT 1");
+      let batch_number = 1;
+      if (get_last_batch.length > 0) {
+        batch_number = parseInt(get_last_batch.batch) + 1;
+      }
+      return batch_number;
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
 }
 export default Schema;
