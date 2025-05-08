@@ -1,17 +1,18 @@
 import ColumnBuilder from "./ColumnBuilder";
 
 class Builder {
-  private primaryKey?: string;
+  private primary_key?: string;
   private readonly columns: ColumnBuilder[] = [];
   private lastColumn?: ColumnBuilder;
   private type_column: string = "";
+  private readonly drop_columns: string[] = [];
   constructor(
-    private tableName: string,
-    private driver: "mysql" | "sqlite" | "postgres",
+    private readonly tableName: string,
+    private readonly driver: "mysql" | "sqlite" | "postgres",
   ) {}
-  primary_key() {
+  primaryKey() {
     if (this.lastColumn) {
-      this.primaryKey = this.lastColumn.name;
+      this.primary_key = this.lastColumn.name;
     }
   }
   increments(name: string) {
@@ -60,7 +61,7 @@ class Builder {
     this.type_column = "date";
     return this;
   }
-  string(name: string, long: number) {
+  string(name: string, long: number = 255) {
     if (!name || !long) {
       throw new Error(`One or both values are required in the string method`);
     }
@@ -164,31 +165,31 @@ class Builder {
     }
     return this;
   }
-  check_like_between(value: string): this {
+  checkLikeBetween(value: string): this {
     if (this.lastColumn) {
       this.lastColumn.check_value = `CHECK (${this.lastColumn.name} LIKE '%${value}%')`;
     }
     return this;
   }
-  check_like_start(value: string): this {
+  checkLikeStart(value: string): this {
     if (this.lastColumn) {
       this.lastColumn.check_value = `CHECK (${this.lastColumn.name} LIKE '${value}%')`;
     }
     return this;
   }
-  check_like_end(value: string): this {
+  checkLikeEnd(value: string): this {
     if (this.lastColumn) {
       this.lastColumn.check_value = `CHECK (${this.lastColumn.name} LIKE '%${value}')`;
     }
     return this;
   }
-  check_like(value: string): this {
+  checkLike(value: string): this {
     if (this.lastColumn) {
       this.lastColumn.check_value = `CHECK (${this.lastColumn.name} LIKE '${value}')`;
     }
     return this;
   }
-  check_between_equal(value_1: number | string, value_2: number | string): this {
+  checkBetweenEqual(value_1: number | string, value_2: number | string): this {
     if (this.lastColumn) {
       if (!value_1 || !value_2) {
         throw new Error(`One or both values are required in the check_between_equal method: COLUMN: ${this.lastColumn?.name}`);
@@ -211,7 +212,7 @@ class Builder {
     }
     return this;
   }
-  check_between(value_1: number | string, value_2: number | string): this {
+  checkBetween(value_1: number | string, value_2: number | string): this {
     if (this.lastColumn) {
       if (!value_1 || !value_2) {
         throw new Error(`One or both values are required in the check_between method: COLUMN: ${this.lastColumn?.name}`);
@@ -242,7 +243,7 @@ class Builder {
     }
     return this;
   }
-  check_greater_than(value_1: number | string): this {
+  checkGreaterThan(value_1: number | string): this {
     if (this.lastColumn) {
       if (!value_1) {
         throw new Error(`Value are required in the check_greater_than method: COLUMN: ${this.lastColumn?.name}`);
@@ -262,7 +263,7 @@ class Builder {
     }
     return this;
   }
-  check_greater_equal_than(value_1: number | string): this {
+  checkGreaterEqualThan(value_1: number | string): this {
     if (this.lastColumn) {
       if (!value_1) {
         throw new Error(`Value are required in the check_greater_equal_than method: COLUMN: ${this.lastColumn?.name}`);
@@ -282,7 +283,7 @@ class Builder {
     }
     return this;
   }
-  check_less_than(value_1: number | string): this {
+  checkLessThan(value_1: number | string): this {
     if (this.lastColumn) {
       if (!value_1) {
         throw new Error(`Value are required in the check_less_than method: COLUMN: ${this.lastColumn?.name}`);
@@ -302,7 +303,7 @@ class Builder {
     }
     return this;
   }
-  check_less_equal_than(value_1: number | string): this {
+  checkLessEqualThan(value_1: number | string): this {
     if (this.lastColumn) {
       if (!value_1) {
         throw new Error(`Value are required in the check_less_equal_than method: COLUMN: ${this.lastColumn?.name}`);
@@ -322,7 +323,7 @@ class Builder {
     }
     return this;
   }
-  check_length(value: number): this {
+  checkLength(value: number): this {
     if (this.lastColumn) {
       if (!value) {
         throw new Error(`Value are required in the check_length method: COLUMN: ${this.lastColumn.name}`);
@@ -334,7 +335,7 @@ class Builder {
     }
     return this;
   }
-  check_compare(value_1: number | string, value_2: number | string): this {
+  checkCompare(value_1: number | string, value_2: number | string): this {
     if (this.lastColumn) {
       if (!value_1 || !value_2) {
         throw new Error(`One or both values are required in the check_compare method: COLUMN: ${this.lastColumn?.name}`);
@@ -351,13 +352,25 @@ class Builder {
     }
     return this;
   }
+  dropColumn(name_column: string) {
+    switch (this.driver) {
+      case "mysql": {
+        const query = `DROP COLUMN ${name_column}`;
+        this.drop_columns.push(query);
+        break;
+      }
+
+      default:
+        break;
+    }
+  }
   sql() {
     const columns_string = this.columns.map((i) => i.generate_sql().trim());
     let sql = "";
     switch (this.driver) {
       case "mysql": {
         sql = `CREATE TABLE ${this.tableName} (${columns_string}`;
-        if (this.primaryKey) sql += `, PRIMARY KEY (${this.primaryKey})`;
+        if (this.primary_key) sql += `, PRIMARY KEY (${this.primary_key})`;
         sql += ");";
         break;
       }
@@ -366,6 +379,61 @@ class Builder {
         break;
     }
     return sql;
+  }
+  sql_update(): string {
+    try {
+      const columns_string = this.columns.map((i) => i.generate_sql_update().trim());
+      let sql = "";
+      switch (this.driver) {
+        case "mysql": {
+          sql = `ALTER TABLE ${this.tableName} ${columns_string}`;
+          if (this.primary_key) sql += `, PRIMARY KEY (${this.primary_key})`;
+          break;
+        }
+        case "postgres": {
+          break;
+        }
+        default:
+          break;
+      }
+      return sql;
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  sql_drop(): string {
+    try {
+      let sql = "";
+      switch (this.driver) {
+        case "mysql":
+          sql = `ALTER TABLE ${this.tableName} ${this.drop_columns}`;
+          break;
+        case "postgres":
+          break;
+        default:
+          break;
+      }
+      return sql;
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  sql_delete_table(): string {
+    try {
+      let sql = "";
+      switch (this.driver) {
+        case "mysql":
+          sql = `DROP TABLE ${this.tableName}`;
+          break;
+        case "postgres":
+          break;
+        default:
+          break;
+      }
+      return sql;
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
   }
 }
 export default Builder;

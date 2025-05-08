@@ -19,5 +19,8 @@ class ColumnBuilder {
   generate_sql() {
     return `${this.name} ${this.text_column} ${this.unique_value} ${this.null_value} ${this.check_value} ${this.default_value}`;
   }
+  generate_sql_update() {
+    return `ADD COLUMN ${this.generate_sql()}`;
+  }
 }
 export default ColumnBuilder;

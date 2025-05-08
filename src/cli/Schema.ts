@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 import dotenv from "dotenv";
 import fs from "fs";
 import path from "path";
@@ -9,8 +10,8 @@ import Database from "../database/database";
 dotenv.config();
 class Schema {
   private filename_db_config: string = "database-config.json";
-  private filename: string = "";
-  private batch_number: number = 0;
+  private readonly filename: string = "";
+  private readonly batch_number: number = 0;
   private database_values: IDatabaseConfig = {
     driver: "mysql",
     database: "",
@@ -34,19 +35,18 @@ class Schema {
       this.set_database_values();
       await Database.connect(this.database_values);
       const connection = Database.getConnection();
+
       try {
         const exist_database = await this.verify_if_exist_database();
         if (!exist_database) {
           throw new Error(`❌ Database not found: ${this.database_values.database}`);
         }
+
         const exist_table = await this.verify_if_exist_table(name_table, connection);
-        if (!exist_table) {
-          const builder = new Builder(name_table, this.database_values.driver);
-          callback(builder);
-          const sql = builder.sql();
-          await connection.query(sql, []);
-        } else {
-        }
+        const builder = new Builder(name_table, this.database_values.driver);
+        callback(builder);
+        let sql = !exist_table ? builder.sql() : builder.sql_update();
+        await connection.query(sql, []);
         await this.register_migration(this.filename, connection);
         console.log("✅ Migration executed correctly.");
       } catch (error: any) {
@@ -58,7 +58,29 @@ class Schema {
       throw new Error(error.message);
     }
   }
-  async drop(name_table: string) {}
+  async drop(name_table: string, callback?: (table: Builder) => void) {
+    this.set_database_values();
+    await Database.connect(this.database_values);
+    const connection = Database.getConnection();
+    try {
+      const builder = new Builder(name_table, this.database_values.driver);
+      if (callback) {
+        callback(builder);
+        let sql = builder.sql_drop();
+        await connection.query(sql, []);
+        await this.delete_migration(this.filename, connection);
+      } else {
+        let sql = builder.sql_delete_table();
+        await connection.query(sql, []);
+        await this.delete_migration(this.filename, connection);
+      }
+      console.log("✅ Rollback executed correctly.");
+    } catch (error: any) {
+      throw new Error(error.message);
+    } finally {
+      connection.close();
+    }
+  }
   private verify_env(): boolean {
     try {
       const variables = ["SKYORM_DRIVER", "SKYORM_HOST", "SKYORM_DATABASE", "SKYORM_USER", "SKYORM_PORT"];
@@ -172,6 +194,13 @@ class Schema {
       throw new Error(error.message);
     }
   }
+  private async delete_migration(filename: string, conn: IDBDriver): Promise<void> {
+    try {
+      await conn.query(`DELETE FROM migrations WHERE name = ?`, [filename]);
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
   async migration_execute(filename: string, conn: IDBDriver): Promise<boolean> {
     try {
       const [result] = await conn.query("SELECT id FROM migrations WHERE name = ?", [filename]);
@@ -182,12 +211,21 @@ class Schema {
   }
   async get_last_batch(conn: IDBDriver): Promise<number> {
     try {
-      const [get_last_batch] = await conn.query("SELECT batch FROM migrations ORDER BY batch DESC LIMIT 1");
-      let batch_number = 1;
+      const [get_last_batch] = await conn.query("SELECT MAX(batch) as batch FROM migrations");
+      let batch_number = 0;
       if (get_last_batch.length > 0) {
-        batch_number = parseInt(get_last_batch.batch) + 1;
+        batch_number = parseInt(get_last_batch[0].batch);
       }
+
       return batch_number;
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  async get_migrations_by_batch(batch: number, conn: IDBDriver): Promise<string[]> {
+    try {
+      const [get_migrations] = await conn.query("SELECT name FROM migrations WHERE batch = ? ORDER BY name DESC", [batch]);
+      return get_migrations.map((i: any) => i.name);
     } catch (error: any) {
       throw new Error(error.message);
     }

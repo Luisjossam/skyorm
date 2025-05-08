@@ -44,15 +44,16 @@ function migrateCommand(args: string[]) {
     import Schema from "skyorm/src/cli/Schema";
     export default {
       up(schema: Schema) {
-      schema.create("${name_table}", (table) => {
-        table.increments("id");
-        // table.timestamps();
-        // table.softDeletes();
-      });
-      
+        return schema.create("${name_table}", (table) => {
+          table.increments("id");
+          // table.timestamps();
+          // table.softDeletes();
+        });
       },
       down(schema: Schema) {
-      schema.drop("${name_table}");
+        return schema.drop("${name_table}", (table) => {
+          table.dropColumn("id")
+        });
       }
     };
   `;
@@ -60,15 +61,16 @@ function migrateCommand(args: string[]) {
     content = `
       export default {
         up(schema) {
-        schema.create("${name_table}", (table) => {
-          table.increments("id");
-          // table.timestamps();
-          // table.softDeletes();
-        });
-        
+          schema.create("${name_table}", (table) => {
+            table.increments("id");
+            // table.timestamps();
+            // table.softDeletes();
+          });
         },
         down(schema) {
-        schema.drop("${name_table}");
+          schema.drop("${name_table}", (table) => {
+            table.dropColumn("id")
+          });
         }
       };
     `;

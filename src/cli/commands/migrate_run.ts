@@ -12,7 +12,7 @@ async function runMigrations(options: string[]) {
   const schema = new Schema([], "", 0);
   const verify_db_config = schema.verify_database_config();
   if (!verify_db_config) {
-    console.log(`❌ No specified database configuration file exists or environment variables are not complete.\n`);
+    console.log("❌ No specified database configuration file exists or environment variables are not complete.\n");
     console.log("   Visit the documentation to learn more about database configuration and migrations.");
     process.exit(1);
   }
@@ -24,13 +24,13 @@ async function runMigrations(options: string[]) {
   const new_array_files = await set_new_files_array(files, schema, connection);
   if (new_array_files.length > 0) {
     try {
+      require("ts-node").register();
+      const batch_number = await schema.get_last_batch(connection);
       for (const file of new_array_files) {
-        const batch_number = await schema.get_last_batch(connection);
         const migrationPath = path.join(basePath, file);
         console.log(`🔄 Running: ${file}`);
-        if (file.endsWith(".ts")) require("ts-node").register();
         const migration = require(migrationPath).default;
-        await migration.up(new Schema(options, file, batch_number));
+        await migration.up(new Schema(options, file, batch_number + 1));
       }
       process.exit(0);
     } catch (error) {
