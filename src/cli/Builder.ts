@@ -359,6 +359,64 @@ class Builder {
     this.type_column = "set";
     return this;
   }
+  char(name: string, length: number) {
+    if (name === "") {
+      throw new Error("Column name required in char method");
+    }
+    if (!length || length <= 0) throw new Error("The length value of the char method must be greater than 0");
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql": {
+        column = new ColumnBuilder(this).set_values(name, `CHAR(${length})`);
+        break;
+      }
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "char";
+    return this;
+  }
+  mediumText(name: string) {
+    if (name === "") {
+      throw new Error("Column name required in mediumText method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql": {
+        column = new ColumnBuilder(this).set_values(name, "MEDIUMTEXT");
+        break;
+      }
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "mediumText";
+    return this;
+  }
+  smallInt(name: string) {
+    if (name === "") {
+      throw new Error("Column name required in smallInt method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql": {
+        column = new ColumnBuilder(this).set_values(name, "SMALLINT");
+        break;
+      }
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "smallInt";
+    return this;
+  }
   string(name: string, long: number = 255) {
     if (!name || !long) {
       throw new Error(`One or both values are required in the string method`);
