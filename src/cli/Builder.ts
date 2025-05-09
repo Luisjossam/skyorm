@@ -10,11 +10,6 @@ class Builder {
     private readonly tableName: string,
     private readonly driver: "mysql" | "sqlite" | "postgres",
   ) {}
-  primaryKey() {
-    if (this.lastColumn) {
-      this.primary_key = this.lastColumn.name;
-    }
-  }
   increments(name: string) {
     if (name === "") {
       throw new Error("Column name required in increments method");
@@ -38,6 +33,193 @@ class Builder {
     this.type_column = "increments";
     return this;
   }
+  bigInt(name: string) {
+    if (name === "") {
+      throw new Error("Column name required in bigInt method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql":
+        column = new ColumnBuilder(this).set_values(name, "BIGINT");
+        break;
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "bigInt";
+    return this;
+  }
+  tinyInt(name: string) {
+    if (name === "") {
+      throw new Error("Column name required in tinyInt method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql":
+        column = new ColumnBuilder(this).set_values(name, "TINYINT");
+        break;
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "tinyInt";
+    return this;
+  }
+  boolean(name: string) {
+    if (name === "") {
+      throw new Error("Column name required in boolean method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql":
+        column = new ColumnBuilder(this).set_values(name, "TINYINT(1)");
+        break;
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "boolean";
+    return this;
+  }
+  text(name: string) {
+    if (name === "") {
+      throw new Error("Column name required in text method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql":
+        column = new ColumnBuilder(this).set_values(name, "TEXT");
+        break;
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "text";
+    return this;
+  }
+  longText(name: string) {
+    if (name === "") {
+      throw new Error("Column name required in longText method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql":
+        column = new ColumnBuilder(this).set_values(name, "LONGTEXT");
+        break;
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "longText";
+    return this;
+  }
+  float(name: string, precision?: number, scale: number = 2) {
+    if (name === "") {
+      throw new Error("Column name required in float method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql": {
+        const float_type = precision ? `FLOAT(${precision},${scale})` : "FLOAT";
+        column = new ColumnBuilder(this).set_values(name, float_type);
+        break;
+      }
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "float";
+    return this;
+  }
+  double(name: string, precision?: number, scale: number = 2) {
+    if (name === "") {
+      throw new Error("Column name required in double method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql": {
+        const float_type = precision ? `DOUBLE(${precision},${scale})` : "DOUBLE";
+        column = new ColumnBuilder(this).set_values(name, float_type);
+        break;
+      }
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "double";
+    return this;
+  }
+  binary(name: string) {
+    if (name === "") {
+      throw new Error("Column name required in binary method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql": {
+        column = new ColumnBuilder(this).set_values(name, "BINARY");
+        break;
+      }
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "binary";
+    return this;
+  }
+  uuid(name: string) {
+    if (name === "") {
+      throw new Error("Column name required in uuid method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql": {
+        column = new ColumnBuilder(this).set_values(name, "CHAR(36)");
+        break;
+      }
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "uuid";
+    return this;
+  }
+  json(name: string) {
+    if (name === "") {
+      throw new Error("Column name required in json method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql": {
+        column = new ColumnBuilder(this).set_values(name, "JSON");
+        break;
+      }
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "json";
+    return this;
+  }
   date(name: string) {
     if (name === "") {
       throw new Error("Column name required in date method");
@@ -59,6 +241,102 @@ class Builder {
     this.columns.push(column);
     this.lastColumn = column;
     this.type_column = "date";
+    return this;
+  }
+  time(name: string) {
+    if (name === "") {
+      throw new Error("Column name required in time method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql": {
+        column = new ColumnBuilder(this).set_values(name, "TIME");
+        break;
+      }
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "time";
+    return this;
+  }
+  datetime(name: string) {
+    if (name === "") {
+      throw new Error("Column name required in datetime method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql": {
+        column = new ColumnBuilder(this).set_values(name, "DATETIME");
+        break;
+      }
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "datetime";
+    return this;
+  }
+  timestamp(name: string) {
+    if (name === "") {
+      throw new Error("Column name required in timestamp method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql": {
+        column = new ColumnBuilder(this).set_values(name, "TIMESTAMP");
+        break;
+      }
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "timestamp";
+    return this;
+  }
+  year(name: string) {
+    if (name === "") {
+      throw new Error("Column name required in year method");
+    }
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql": {
+        column = new ColumnBuilder(this).set_values(name, "YEAR");
+        break;
+      }
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "year";
+    return this;
+  }
+  enum(name: string, values: string[]) {
+    if (name === "") throw new Error("Column name required in enum method");
+    if (!values) throw new Error("The array of values in the enum is necessary");
+    if (values.length === 0) throw new Error("At least one value is required in the enum array");
+    let column: ColumnBuilder;
+    const vls = values.map((i) => `'${i}'`).join(", ");
+    switch (this.driver) {
+      case "mysql": {
+        column = new ColumnBuilder(this).set_values(name, `ENUM(${vls})`);
+        break;
+      }
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "enum";
     return this;
   }
   string(name: string, long: number = 255) {
@@ -134,6 +412,12 @@ class Builder {
     this.columns.push(column);
     this.lastColumn = column;
     this.type_column = "decimal";
+    return this;
+  }
+  primaryKey(): this {
+    if (this.lastColumn) {
+      this.primary_key = this.lastColumn.name;
+    }
     return this;
   }
   null(): this {
