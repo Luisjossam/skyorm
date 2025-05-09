@@ -1,10 +1,14 @@
 import ColumnBuilder from "./ColumnBuilder";
+type TEngine = "InnoDB" | "MyISAM" | "MEMORY" | "ARCHIVE" | "CSV";
+type TCharset = "utf8mb4" | "utf8" | "latin1" | "utf16" | "ucs2";
 
 class Builder {
   private primary_key?: string;
   private readonly columns: ColumnBuilder[] = [];
   private lastColumn?: ColumnBuilder;
   private type_column: string = "";
+  private type_engine: string = "";
+  private type_charset: string = "";
   private readonly drop_columns: string[] = [];
   constructor(
     private readonly tableName: string,
@@ -492,6 +496,59 @@ class Builder {
     this.type_column = "decimal";
     return this;
   }
+  timestamps() {
+    let created_at: ColumnBuilder;
+    let updated_at: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql":
+        created_at = new ColumnBuilder(this).set_values("created_at", "TIMESTAMP");
+        updated_at = new ColumnBuilder(this).set_values("updated_at", "TIMESTAMP");
+        break;
+
+      default: {
+        throw new Error("Unsupported driver");
+      }
+    }
+    this.columns.push(created_at);
+    this.columns.push(updated_at);
+  }
+  softDeletes() {
+    let column: ColumnBuilder;
+    switch (this.driver) {
+      case "mysql":
+        column = new ColumnBuilder(this).set_values("deleted_at", "TIMESTAMP");
+        break;
+
+      default: {
+        throw new Error("Unsupported driver");
+      }
+    }
+    this.columns.push(column);
+  }
+  engine(type: TEngine) {
+    let column: string = "";
+    switch (this.driver) {
+      case "mysql":
+        column = `ENGINE = ${type}`;
+        break;
+
+      default:
+        break;
+    }
+    this.type_engine = column;
+  }
+  charset(type: TCharset) {
+    let column: string = "";
+    switch (this.driver) {
+      case "mysql":
+        column = `DEFAULT CHARSET = ${type}`;
+        break;
+
+      default:
+        break;
+    }
+    this.type_charset = column;
+  }
   primaryKey(): this {
     if (this.lastColumn) {
       this.primary_key = this.lastColumn.name;
@@ -733,7 +790,10 @@ class Builder {
       case "mysql": {
         sql = `CREATE TABLE ${this.tableName} (${columns_string}`;
         if (this.primary_key) sql += `, PRIMARY KEY (${this.primary_key})`;
-        sql += ");";
+        sql += ")";
+        if (this.type_engine !== "") sql += ` ${this.type_engine}`;
+        if (this.type_charset !== "") sql += ` ${this.type_charset}`;
+        sql += ";";
         break;
       }
 

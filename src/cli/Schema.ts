@@ -46,7 +46,6 @@ class Schema {
         const builder = new Builder(name_table, this.database_values.driver);
         callback(builder);
         let sql = !exist_table ? builder.sql() : builder.sql_update();
-        console.log(sql);
         await connection.query(sql, []);
         await this.register_migration(this.filename, connection);
         console.log("✅ Migration executed correctly.");
