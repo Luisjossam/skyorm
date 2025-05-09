@@ -339,6 +339,26 @@ class Builder {
     this.type_column = "enum";
     return this;
   }
+  set(name: string, values: string[]) {
+    if (name === "") throw new Error("Column name required in set method");
+    if (!values) throw new Error("The array of values in the enum is necessary");
+    if (values.length === 0) throw new Error("At least one value is required in the enum array");
+    let column: ColumnBuilder;
+    const vls = values.map((i) => `'${i}'`).join(", ");
+    switch (this.driver) {
+      case "mysql": {
+        column = new ColumnBuilder(this).set_values(name, `SET(${vls})`);
+        break;
+      }
+
+      default:
+        throw new Error("Unsupported driver");
+    }
+    this.columns.push(column);
+    this.lastColumn = column;
+    this.type_column = "set";
+    return this;
+  }
   string(name: string, long: number = 255) {
     if (!name || !long) {
       throw new Error(`One or both values are required in the string method`);
