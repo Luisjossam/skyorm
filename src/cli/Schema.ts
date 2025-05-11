@@ -7,6 +7,7 @@ import mysql from "mysql2/promise";
 import { IDatabaseConfig, IDBDriver } from "../interfaces/Interface";
 import Builder from "./Builder";
 import Database from "../database/database";
+import BuilderSQL from "./BuilderSQL";
 dotenv.config();
 class Schema {
   private filename_db_config: string = "database-config.json";
@@ -45,7 +46,9 @@ class Schema {
         const exist_table = await this.verify_if_exist_table(name_table, connection);
         const builder = new Builder(name_table, this.database_values.driver);
         callback(builder);
-        let sql = !exist_table ? builder.sql() : builder.sql_update();
+        let sql = !exist_table
+          ? BuilderSQL.builder_create(name_table, this.database_values.driver)
+          : BuilderSQL.builder_update(name_table, this.database_values.driver);
         await connection.query(sql, []);
         await this.register_migration(this.filename, connection);
         console.log("✅ Migration executed correctly.");
@@ -66,11 +69,11 @@ class Schema {
       const builder = new Builder(name_table, this.database_values.driver);
       if (callback) {
         callback(builder);
-        let sql = builder.sql_drop();
+        let sql = BuilderSQL.builder_drop(name_table, this.database_values.driver);
         await connection.query(sql, []);
         await this.delete_migration(this.filename, connection);
       } else {
-        let sql = builder.sql_delete_table();
+        let sql = BuilderSQL.builder_drop_table(name_table, this.database_values.driver);
         await connection.query(sql, []);
         await this.delete_migration(this.filename, connection);
       }
