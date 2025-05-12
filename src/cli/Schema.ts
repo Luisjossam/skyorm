@@ -47,7 +47,6 @@ class Schema {
         let sql = builderSQL.builder_create(name_table, this.database_values.driver);
         await connection.query(sql, []);
         await this.register_migration(this.filename, connection);
-        console.log("✅ Migration executed correctly.");
       } catch (error: any) {
         throw new Error(error.message);
       } finally {
@@ -76,7 +75,6 @@ class Schema {
         let sql = builderSQL.builder_update(name_table, this.database_values.driver);
         await connection.query(sql, []);
         await this.register_migration(this.filename, connection);
-        console.log("✅ Migration executed correctly.");
       } catch (error: any) {
         throw new Error(error.message);
       } finally {
@@ -103,7 +101,6 @@ class Schema {
         await connection.query(sql, []);
         await this.delete_migration(this.filename, connection);
       }
-      console.log("✅ Rollback executed correctly.");
     } catch (error: any) {
       throw new Error(error.message);
     } finally {

@@ -32,6 +32,7 @@ async function runMigrations(options: string[]) {
         const migration = require(migrationPath).default;
         await migration.up(new Schema(options, file, batch_number + 1));
       }
+      console.log("✅ Run completed.");
       process.exit(0);
     } catch (error) {
       console.error("❌ Error running migrations:", error);
