@@ -32,9 +32,11 @@ type TCharset = "utf8mb4" | "utf8" | "latin1" | "utf16" | "ucs2";
 class Builder {
   private readonly tableName: string = "";
   private readonly driver: TDriver = "mysql";
-  constructor(tableName: string, driver: TDriver) {
+  private readonly BuilderSQL: BuilderSQL;
+  constructor(tableName: string, driver: TDriver, buildersql: BuilderSQL) {
     this.tableName = tableName;
     this.driver = driver;
+    this.BuilderSQL = buildersql;
   }
   increments(name: string): ColumnIncrements {
     if (name === "") {
@@ -54,8 +56,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   bigInt(name: string): ColumnBigInt {
     if (name === "") {
@@ -70,8 +72,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   tinyInt(name: string): ColumnTinyInt {
     if (name === "") {
@@ -86,8 +88,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   boolean(name: string): ColumnBoolean {
     if (name === "") {
@@ -102,8 +104,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   text(name: string): ColumnText {
     if (name === "") {
@@ -118,8 +120,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   longText(name: string): ColumnLongText {
     if (name === "") {
@@ -134,8 +136,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   float(name: string, precision?: number, scale: number = 2): ColumnFloat {
     if (name === "") {
@@ -152,8 +154,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   double(name: string, precision?: number, scale: number = 2): ColumnDouble {
     if (name === "") {
@@ -170,8 +172,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   binary(name: string): ColumnBinary {
     if (name === "") {
@@ -187,8 +189,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   uuid(name: string): ColumnUuid {
     if (name === "") {
@@ -204,8 +206,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   json(name: string): ColumnJson {
     if (name === "") {
@@ -221,8 +223,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   date(name: string): ColumnDate {
     if (name === "") {
@@ -242,8 +244,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   time(name: string): ColumnTime {
     if (name === "") {
@@ -259,8 +261,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   datetime(name: string): ColumnDatetime {
     if (name === "") {
@@ -276,8 +278,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   timestamp(name: string): ColumnTimestamp {
     if (name === "") {
@@ -293,8 +295,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   year(name: string): ColumnYear {
     if (name === "") {
@@ -310,8 +312,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   enum(name: string, values: string[]): ColumnEnum {
     if (name === "") throw new Error("Column name required in enum method");
@@ -328,8 +330,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   set(name: string, values: string[]): ColumnSet {
     if (name === "") throw new Error("Column name required in set method");
@@ -346,8 +348,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   char(name: string, length: number): ColumnChar {
     if (name === "") {
@@ -364,8 +366,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   mediumText(name: string): ColumnMediumText {
     if (name === "") {
@@ -381,8 +383,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   smallInt(name: string): ColumnSmallInt {
     if (name === "") {
@@ -398,8 +400,8 @@ class Builder {
       default:
         throw new Error("Unsupported driver");
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   string(name: string, long: number = 255): ColumnString {
     if (!name || !long) {
@@ -422,8 +424,8 @@ class Builder {
         throw new Error("Unsupported driver");
       }
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   int(name: string): ColumnInt {
     if (name === "") {
@@ -439,8 +441,8 @@ class Builder {
         throw new Error("Unsupported driver");
       }
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   decimal(name: string, length: number | string, decimal_length: number | string): ColumnDecimal {
     if (!length || !decimal_length) {
@@ -467,8 +469,8 @@ class Builder {
         throw new Error("Unsupported driver");
       }
     }
-    BuilderSQL.pushColumn(column);
-    return new ColumnBuilder(column, this.tableName, this.driver);
+    this.BuilderSQL.pushColumn(column);
+    return new ColumnBuilder(column, this.tableName, this.driver, this.BuilderSQL);
   }
   timestamps() {
     let created_at: string;
@@ -483,8 +485,8 @@ class Builder {
         throw new Error("Unsupported driver");
       }
     }
-    BuilderSQL.pushColumn(created_at);
-    BuilderSQL.pushColumn(updated_at);
+    this.BuilderSQL.pushColumn(created_at);
+    this.BuilderSQL.pushColumn(updated_at);
   }
   softDeletes() {
     let column: string;
@@ -497,7 +499,7 @@ class Builder {
         throw new Error("Unsupported driver");
       }
     }
-    BuilderSQL.pushColumn(column);
+    this.BuilderSQL.pushColumn(column);
   }
   engine(type: TEngine) {
     let column: string = "";
@@ -509,7 +511,7 @@ class Builder {
       default:
         break;
     }
-    BuilderSQL.setEngine(column);
+    this.BuilderSQL.setEngine(column);
   }
   charset(type: TCharset) {
     let column: string = "";
@@ -521,7 +523,7 @@ class Builder {
       default:
         break;
     }
-    BuilderSQL.setCharset(column);
+    this.BuilderSQL.setCharset(column);
   }
   dropColumn(name: string) {
     let query = "";
@@ -534,7 +536,7 @@ class Builder {
       default:
         break;
     }
-    BuilderSQL.setDropColumn(query);
+    this.BuilderSQL.setDropColumn(query);
   }
   private generate_column_base(name: string, complement: string) {
     return `${name} ${complement}`;

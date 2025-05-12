@@ -9,25 +9,25 @@ interface IColumn {
 }
 type keyColumn = "primary_key" | "null" | "default" | "unique" | "check_like" | "unsigned";
 class BuilderSQL {
-  private static readonly columns: IColumn[] = [];
-  private static type_engine: string = "";
-  private static type_charset: string = "";
-  private static drops_columns: string[] = [];
-  static setEngine(type: string) {
+  private readonly columns: IColumn[] = [];
+  private type_engine: string = "";
+  private type_charset: string = "";
+  private drops_columns: string[] = [];
+  setEngine(type: string) {
     this.type_engine = type;
   }
-  static setCharset(type: string) {
+  setCharset(type: string) {
     this.type_charset = type;
   }
-  static pushColumn(col: string) {
+  pushColumn(col: string) {
     this.columns.push({
       sql: col,
     });
   }
-  static setDropColumn(column: string) {
+  setDropColumn(column: string) {
     this.drops_columns.push(column);
   }
-  static setValue(name_column: string, key: keyColumn, value?: string) {
+  setValue(name_column: string, key: keyColumn, value?: string) {
     const colIndex = this.columns.findIndex((i) => i.sql === name_column);
     const col = this.columns[colIndex];
     switch (key) {
@@ -53,7 +53,7 @@ class BuilderSQL {
         break;
     }
   }
-  static builder_create(tableName: string, driver: string) {
+  builder_create(tableName: string, driver: string) {
     const columns_string = this.columns.map((i) => this.generateColumnSQL(i));
     const primary_keys = this.columns.filter((i) => i.primary_key);
 
@@ -61,7 +61,7 @@ class BuilderSQL {
     switch (driver) {
       case "mysql":
         sql = `CREATE TABLE ${tableName} (${columns_string}`;
-        if (primary_keys.length > 0) sql += `, PRIMARY KEY (${this.columns.map((i) => i.sql.split(" ")[0]).join(", ")})`;
+        if (primary_keys.length > 0) sql += `, PRIMARY KEY (${primary_keys.map((i) => i.sql.split(" ")[0]).join(", ")})`;
         sql += ")";
         if (this.type_engine !== "") sql += ` ${this.type_engine}`;
         if (this.type_charset !== "") sql += ` ${this.type_charset}`;
@@ -72,14 +72,14 @@ class BuilderSQL {
     }
     return sql;
   }
-  static builder_update(tableName: string, driver: string) {
+  builder_update(tableName: string, driver: string) {
     const columns_string = this.columns.map((i) => this.generateUpdateColumnSQL(i));
     const primary_keys = this.columns.filter((i) => i.primary_key);
     let sql = "";
     switch (driver) {
       case "mysql":
         sql = `ALTER TABLE ${tableName} ${columns_string}`;
-        if (primary_keys.length > 0) sql += `, PRIMARY KEY (${this.columns.map((i) => i.sql.split(" ")[0]).join(", ")})`;
+        if (primary_keys.length > 0) sql += `, ADD PRIMARY KEY (${primary_keys.map((i) => i.sql.split(" ")[0]).join(", ")})`;
         break;
 
       default:
@@ -87,7 +87,7 @@ class BuilderSQL {
     }
     return sql;
   }
-  static builder_drop(tableName: string, driver: string) {
+  builder_drop(tableName: string, driver: string) {
     try {
       let sql = "";
       switch (driver) {
@@ -104,7 +104,7 @@ class BuilderSQL {
       throw new Error(error.message);
     }
   }
-  static builder_drop_table(tableName: string, driver: string) {
+  builder_drop_table(tableName: string, driver: string) {
     try {
       let sql = "";
       switch (driver) {
@@ -121,7 +121,7 @@ class BuilderSQL {
       throw new Error(error.message);
     }
   }
-  private static generateColumnSQL(col: IColumn) {
+  private generateColumnSQL(col: IColumn) {
     let column = `${col.sql}`;
     if (col.unsigned) column += ` ${col.unsigned}`;
     if (col.null) column += " NULL";
@@ -130,7 +130,7 @@ class BuilderSQL {
     if (col.unique) column += " UNIQUE";
     return column;
   }
-  private static generateUpdateColumnSQL(col: IColumn) {
+  private generateUpdateColumnSQL(col: IColumn) {
     let column = `ADD COLUMN ${col.sql}`;
     if (col.unsigned) column += ` ${col.unsigned}`;
     if (col.null) column += " NULL";

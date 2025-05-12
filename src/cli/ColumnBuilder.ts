@@ -7,13 +7,14 @@ class ColumnBuilder {
     private readonly column_base: string,
     private readonly tableName: string,
     private readonly driver: TDriver,
+    private readonly BuilderSQL: BuilderSQL,
   ) {}
   primaryKey() {
-    BuilderSQL.setValue(this.column_base, "primary_key");
+    this.BuilderSQL.setValue(this.column_base, "primary_key");
     return this;
   }
   null() {
-    BuilderSQL.setValue(this.column_base, "null");
+    this.BuilderSQL.setValue(this.column_base, "null");
     return this;
   }
   default(value: string | number | boolean | Date): this {
@@ -28,28 +29,28 @@ class ColumnBuilder {
       }
     if (typeof value === "number") val = value.toString();
     if (typeof value === "boolean") val = value ? "TRUE" : "FALSE";
-    BuilderSQL.setValue(this.column_base, "default", val);
+    this.BuilderSQL.setValue(this.column_base, "default", val);
     return this;
   }
   unique(): this {
-    BuilderSQL.setValue(this.column_base, "unique");
+    this.BuilderSQL.setValue(this.column_base, "unique");
     return this;
   }
   checkLikeBetween(value: string): this {
-    BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${this.column_base.split(" ")[0]} LIKE '%${value}%')`);
+    this.BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${this.column_base.split(" ")[0]} LIKE '%${value}%')`);
     return this;
   }
 
   checkLikeStart(value: string): this {
-    BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${this.column_base.split(" ")[0]} LIKE '${value}%')`);
+    this.BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${this.column_base.split(" ")[0]} LIKE '${value}%')`);
     return this;
   }
   checkLikeEnd(value: string): this {
-    BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${this.column_base.split(" ")[0]} LIKE '%${value}')`);
+    this.BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${this.column_base.split(" ")[0]} LIKE '%${value}')`);
     return this;
   }
   checkLike(value: string): this {
-    BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${this.column_base.split(" ")[0]} LIKE '${value}')`);
+    this.BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${this.column_base.split(" ")[0]} LIKE '${value}')`);
     return this;
   }
   checkBetweenEqual(value_1: number | string, value_2: number | string): this {
@@ -71,7 +72,7 @@ class ColumnBuilder {
     if (column_split[1].includes("DECIMAL") && typeof value_2 === "string") {
       if (!/^-?\d+(\.\d+)?$/.test(value_2.trim())) throw new Error(`Value 2 is not a valid number: check_between_equal(..., "${value_2}")`);
     }
-    BuilderSQL.setValue(
+    this.BuilderSQL.setValue(
       this.column_base,
       "check_like",
       `CHECK (${column_split[0]} >= ${value_1} AND ${this.column_base.split(" ")[0]} <= ${value_2})`,
@@ -105,7 +106,7 @@ class ColumnBuilder {
     }
     const result_value_1 = column_split[1] === "DATE" ? `'${value_1}'` : value_1;
     const result_value_2 = column_split[1] === "DATE" ? `'${value_2}'` : value_2;
-    BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${column_split[0]} BETWEEN ${result_value_1} AND ${result_value_2})`);
+    this.BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${column_split[0]} BETWEEN ${result_value_1} AND ${result_value_2})`);
     return this;
   }
   checkGreaterThan(value_1: number | string): this {
@@ -124,7 +125,7 @@ class ColumnBuilder {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(value_1.trim())) throw new Error(`Value is not a valid date: check_greater_than("${value_1}")`);
     }
     const result_value_1 = column_split[1] === "DATE" && value_1 !== "CURRENT_DATE" ? `'${value_1}'` : value_1;
-    BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${column_split[0]} > ${result_value_1})`);
+    this.BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${column_split[0]} > ${result_value_1})`);
     return this;
   }
   checkGreaterEqualThan(value_1: number | string): this {
@@ -143,7 +144,7 @@ class ColumnBuilder {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(value_1.trim())) throw new Error(`Value is not a valid date: check_greater_than("${value_1}")`);
     }
     const result_value_1 = column_split[1] === "DATE" && value_1 !== "CURRENT_DATE" ? `'${value_1}'` : value_1;
-    BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${column_split[0]} >= ${result_value_1})`);
+    this.BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${column_split[0]} >= ${result_value_1})`);
     return this;
   }
   checkLessThan(value_1: number | string): this {
@@ -162,7 +163,7 @@ class ColumnBuilder {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(value_1.trim())) throw new Error(`Value is not a valid date: check_greater_than("${value_1}")`);
     }
     const result_value_1 = column_split[1] === "DATE" && value_1 !== "CURRENT_DATE" ? `'${value_1}'` : value_1;
-    BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${column_split[0]} < ${result_value_1})`);
+    this.BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${column_split[0]} < ${result_value_1})`);
     return this;
   }
   checkLessEqualThan(value_1: number | string): this {
@@ -181,7 +182,7 @@ class ColumnBuilder {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(value_1.trim())) throw new Error(`Value is not a valid date: check_less_greater_than("${value_1}")`);
     }
     const result_value_1 = column_split[1] === "DATE" && value_1 !== "CURRENT_DATE" ? `'${value_1}'` : value_1;
-    BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${column_split[0]} <= ${result_value_1})`);
+    this.BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${column_split[0]} <= ${result_value_1})`);
 
     return this;
   }
@@ -193,7 +194,7 @@ class ColumnBuilder {
     if (typeof value === "string") {
       if (isNaN(value) || !Number.isInteger(parseFloat(value))) throw new Error(`Value is not a valid integer: ${value}`);
     }
-    BuilderSQL.setValue(this.column_base, "check_like", `CHECK (length(${column_split[0]}) > ${value})`);
+    this.BuilderSQL.setValue(this.column_base, "check_like", `CHECK (length(${column_split[0]}) > ${value})`);
     return this;
   }
   checkCompare(value_1: number | string, value_2: number | string): this {
@@ -209,11 +210,11 @@ class ColumnBuilder {
     }
     const result_value_1 = column_split[1] === "DATE" ? `'${value_1}'` : value_1;
     const result_value_2 = column_split[1] === "DATE" ? `'${value_2}'` : value_2;
-    BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${result_value_1} <= ${result_value_2})`);
+    this.BuilderSQL.setValue(this.column_base, "check_like", `CHECK (${result_value_1} <= ${result_value_2})`);
     return this;
   }
   unsigned() {
-    BuilderSQL.setValue(this.column_base, "unsigned");
+    this.BuilderSQL.setValue(this.column_base, "unsigned");
     return this;
   }
   //zerofill() {}

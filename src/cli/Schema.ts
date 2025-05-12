@@ -39,16 +39,41 @@ class Schema {
 
       try {
         const exist_database = await this.verify_if_exist_database();
+        if (!exist_database) throw new Error(`❌ Database not found: ${this.database_values.database}`);
+
+        const builderSQL = new BuilderSQL();
+        const builder = new Builder(name_table, this.database_values.driver, builderSQL);
+        callback(builder);
+        let sql = builderSQL.builder_create(name_table, this.database_values.driver);
+        await connection.query(sql, []);
+        await this.register_migration(this.filename, connection);
+        console.log("✅ Migration executed correctly.");
+      } catch (error: any) {
+        throw new Error(error.message);
+      } finally {
+        connection.close();
+      }
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  async table(name_table: string, callback: (table: Builder) => void) {
+    try {
+      this.set_database_values();
+      await Database.connect(this.database_values);
+      const connection = Database.getConnection();
+
+      try {
+        const exist_database = await this.verify_if_exist_database();
         if (!exist_database) {
           throw new Error(`❌ Database not found: ${this.database_values.database}`);
         }
-
         const exist_table = await this.verify_if_exist_table(name_table, connection);
-        const builder = new Builder(name_table, this.database_values.driver);
+        if (!exist_table) throw new Error(`❌ Table not found: ${name_table}`);
+        const builderSQL = new BuilderSQL();
+        const builder = new Builder(name_table, this.database_values.driver, builderSQL);
         callback(builder);
-        let sql = !exist_table
-          ? BuilderSQL.builder_create(name_table, this.database_values.driver)
-          : BuilderSQL.builder_update(name_table, this.database_values.driver);
+        let sql = builderSQL.builder_update(name_table, this.database_values.driver);
         await connection.query(sql, []);
         await this.register_migration(this.filename, connection);
         console.log("✅ Migration executed correctly.");
@@ -66,14 +91,15 @@ class Schema {
     await Database.connect(this.database_values);
     const connection = Database.getConnection();
     try {
-      const builder = new Builder(name_table, this.database_values.driver);
+      const builderSQL = new BuilderSQL();
+      const builder = new Builder(name_table, this.database_values.driver, builderSQL);
       if (callback) {
         callback(builder);
-        let sql = BuilderSQL.builder_drop(name_table, this.database_values.driver);
+        let sql = builderSQL.builder_drop(name_table, this.database_values.driver);
         await connection.query(sql, []);
         await this.delete_migration(this.filename, connection);
       } else {
-        let sql = BuilderSQL.builder_drop_table(name_table, this.database_values.driver);
+        let sql = builderSQL.builder_drop_table(name_table, this.database_values.driver);
         await connection.query(sql, []);
         await this.delete_migration(this.filename, connection);
       }
@@ -229,6 +255,14 @@ class Schema {
     try {
       const [get_migrations] = await conn.query("SELECT name FROM migrations WHERE batch = ? ORDER BY name DESC", [batch]);
       return get_migrations.map((i: any) => i.name);
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  async get_all_migrations(conn: IDBDriver): Promise<{ name: string; batch: string }[]> {
+    try {
+      const [get_migrations] = await conn.query("SELECT name, batch FROM migrations ORDER BY name DESC", []);
+      return get_migrations;
     } catch (error: any) {
       throw new Error(error.message);
     }

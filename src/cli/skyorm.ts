@@ -8,6 +8,8 @@ if (args.length === 0) {
   console.log("         create:migration <name> --pivot(optional) --ext=<ts,js>(opcional)");
   console.log("         migrate:run --config=<filename>(optional)");
   console.log("         migrate:rollback");
+  console.log("         migrate:refresh");
+
   console.log("");
   console.log("     [---- MODELS ----]");
   console.log("         create:model <name> --ext=<ts,js>(optional)");
@@ -27,6 +29,9 @@ switch (command) {
     break;
   case "migrate:rollback":
     require("./commands/migrate_rollback")(rest);
+    break;
+  case "migrate:refresh":
+    require("./commands/migrate_refresh")(rest);
     break;
   default:
     console.error(`Unknown command: ${command}`);

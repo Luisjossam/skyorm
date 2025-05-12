@@ -1,9 +1,9 @@
 import path from "path";
-import Schema from "../Schema";
 import Database from "../../database/database";
-
+import Schema from "../Schema";
 const basePath = path.resolve(process.cwd(), "src/migrations");
-async function migrate_rollback(options: string[]) {
+
+async function migrate_refresh(options: string[]) {
   const schema = new Schema([], "", 0);
   const verify_db_config = schema.verify_database_config();
   if (!verify_db_config) {
@@ -16,27 +16,28 @@ async function migrate_rollback(options: string[]) {
   await Database.connect(database_values);
   const connection = Database.getConnection();
   try {
-    const lastBatch = await schema.get_last_batch(connection);
-
-    if (lastBatch === 0) {
-      console.log("📦 No migrations to rollback.");
-      process.exit(0);
-    }
-    const migrations = await schema.get_migrations_by_batch(lastBatch, connection);
+    const migrations = await schema.get_all_migrations(connection);
     require("ts-node").register();
     for (const migration of migrations) {
-      const migrationPath = path.join(basePath, migration);
-      console.log(`⏪ Rolling back: ${migration}`);
+      const migrationPath = path.join(basePath, migration.name);
+      console.log(`⏪ Rollback back: ${migration.name}`);
       const migration_rollback = require(migrationPath).default;
-      await migration_rollback.down(new Schema(options, migration, lastBatch));
+      await migration_rollback.down(new Schema(options, migration.name, parseInt(migration.batch)));
     }
-    console.log("✅ Rollback completed.");
+    const batch_number = await schema.get_last_batch(connection);
+    for (const migration of [...migrations].reverse()) {
+      const migrationPath = path.join(basePath, migration.name);
+      console.log(`🔄 Running: ${migration.name}`);
+      const migration_up = require(migrationPath).default;
+      await migration_up.up(new Schema(options, migration.name, batch_number + 1));
+    }
+    console.log("✅ Refresh completed.");
     process.exit(0);
   } catch (error) {
-    console.error("❌ Rollback failed:", error);
+    console.error("❌ Refresh failed:", error);
     process.exit(1);
   } finally {
     connection.close();
   }
 }
-module.exports = migrate_rollback;
+module.exports = migrate_refresh;

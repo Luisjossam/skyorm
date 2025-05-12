@@ -33,27 +33,32 @@ function migrateCommand(args: string[]) {
   if (arg_two.includes("--ext=")) extension = arg_two.split("=")[1];
   if (arg_three.includes("--ext=")) extension = arg_three.split("=")[1];
   if (!["ts", "js"].includes(extension)) {
-    console.error("The extension must be ts or js");
+    console.error("The extension must be .ts or .js");
     process.exit(1);
   }
   const fileName = `${timestamp}_migration_${name_table}_table.${extension}`;
+  const existMigration = checkIfExistMigration(name_table);
   const folder = "src/migrations";
   if (!fs.existsSync(folder)) fs.mkdirSync(folder);
   const filePath = path.join(process.cwd(), folder, fileName);
+  const typeSchema = existMigration ? "table" : "create";
+  const typeSchemaDrop = existMigration
+    ? `, (table) => {
+          table.dropColumn("id")
+        }`
+    : "";
   let content = `
     import Schema from "skyorm/src/cli/Schema";
     export default {
       up(schema: Schema) {
-        return schema.create("${name_table}", (table) => {
+        return schema.${typeSchema}("${name_table}", (table) => {
           table.increments("id");
           // table.timestamps();
           // table.softDeletes();
         });
       },
       down(schema: Schema) {
-        return schema.drop("${name_table}", (table) => {
-          table.dropColumn("id")
-        });
+        return schema.drop("${name_table}"${typeSchemaDrop});
       }
     };
   `;
@@ -61,16 +66,14 @@ function migrateCommand(args: string[]) {
     content = `
       export default {
         up(schema) {
-          schema.create("${name_table}", (table) => {
+          schema.${typeSchema}("${name_table}", (table) => {
             table.increments("id");
             // table.timestamps();
             // table.softDeletes();
           });
         },
         down(schema) {
-          schema.drop("${name_table}", (table) => {
-            table.dropColumn("id")
-          });
+           schema.drop("${name_table}"${typeSchemaDrop});
         }
       };
     `;
@@ -78,6 +81,18 @@ function migrateCommand(args: string[]) {
 
   fs.writeFileSync(filePath, content);
   console.log(`📝 Migration created: migrations/${fileName}`);
+}
+function checkIfExistMigration(name: string): boolean {
+  try {
+    const basePath = path.resolve(process.cwd(), "src/migrations");
+    const files = fs.readdirSync(basePath);
+    for (const file of files) {
+      if (file.includes(`_${name}_table`)) return true;
+    }
+    return false;
+  } catch (error: any) {
+    throw new Error(error.message);
+  }
 }
 
 module.exports = migrateCommand;
