@@ -74,6 +74,7 @@ class Database {
             password: database_info.password,
             database: database_info.database,
             port: database_info.port ?? 3306,
+            multipleStatements: database_info.multipleStatements ?? false,
           });
           await this.connection.connect();
           break;

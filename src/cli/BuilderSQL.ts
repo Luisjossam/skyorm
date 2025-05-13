@@ -109,7 +109,7 @@ class BuilderSQL {
       let sql = "";
       switch (driver) {
         case "mysql":
-          sql = `DROP TABLE ${tableName}`;
+          sql = `DROP TABLE IF EXISTS ${tableName}`;
           break;
         case "postgres":
           break;
@@ -117,6 +117,18 @@ class BuilderSQL {
           break;
       }
       return sql;
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
+  }
+  dropAllTables(
+    migrations: {
+      name: string;
+      batch: string;
+    }[],
+  ): string[] {
+    try {
+      return [...new Set(migrations.map((i) => i.name.match(/migration_(.*?)_table/)![1])), "migrations"];
     } catch (error: any) {
       throw new Error(error.message);
     }

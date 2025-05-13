@@ -21,6 +21,7 @@ class Schema {
     user: "",
     port: 3306,
     filepath: "",
+    multipleStatements: false,
   };
   constructor(options: string[], filename: string, batch_number: number) {
     options.forEach((i) => {
@@ -147,6 +148,7 @@ class Schema {
           user: process.env.SKYORM_USER as string,
           port: process.env.SKYORM_PORT as unknown as number,
           filepath: process.env.SKYORM_FILEPATH ?? "",
+          multipleStatements: (process.env.SKYORM_MULTIPLE_STATEMENTS as unknown as boolean) ?? false,
         };
       } else {
         const data: IDatabaseConfig = JSON.parse(fs.readFileSync(path.join(process.cwd(), this.filename_db_config), "utf-8"));
@@ -158,6 +160,7 @@ class Schema {
           user: data.user,
           filepath: data.filepath,
           port: data.port,
+          multipleStatements: data.multipleStatements ?? false,
         };
       }
     } catch (error: any) {
@@ -237,7 +240,7 @@ class Schema {
   }
   async get_last_batch(conn: IDBDriver): Promise<number> {
     try {
-      const [get_last_batch] = await conn.query("SELECT MAX(batch) as batch FROM migrations");
+      const [get_last_batch] = await conn.query("SELECT batch FROM migrations ORDER BY batch DESC LIMIT 1");
       let batch_number = 0;
       if (get_last_batch.length > 0) {
         batch_number = parseInt(get_last_batch[0].batch);

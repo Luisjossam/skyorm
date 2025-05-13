@@ -19,6 +19,7 @@ export interface IDatabaseConfig {
   password: string;
   port?: number;
   filepath?: string;
+  multipleStatements?: boolean;
 }
 export interface IDBDriver {
   connect(): Promise<void>;
@@ -34,6 +35,7 @@ export interface IDBConnection {
   password: string;
   database: string;
   port?: number;
+  multipleStatements?: boolean;
 }
 
 export interface IRelations {

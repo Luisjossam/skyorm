@@ -10,6 +10,7 @@ if (args.length === 0) {
   console.log("         migrate:rollback");
   console.log("         migrate:refresh");
   console.log("         migrate:reset");
+  console.log("         migrate:fresh");
 
   console.log("");
   console.log("     [---- MODELS ----]");
@@ -36,6 +37,9 @@ switch (command) {
     break;
   case "migrate:reset":
     require("./commands/migrate_reset")(rest);
+    break;
+  case "migrate:fresh":
+    require("./commands/migrate_fresh")(rest);
     break;
   default:
     console.error(`Unknown command: ${command}`);

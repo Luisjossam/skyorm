@@ -9,6 +9,7 @@ class MySqlDriver implements IDBDriver {
   private readonly password: string;
   private readonly database: string;
   private readonly port: number | undefined;
+  private readonly multipleStatements: boolean | undefined = false;
 
   constructor(options: IDBConnection) {
     this.host = options.host ?? "localhost";
@@ -16,6 +17,7 @@ class MySqlDriver implements IDBDriver {
     this.password = options.password;
     this.database = options.database;
     this.port = options.port ?? 3306;
+    this.multipleStatements = options.multipleStatements;
   }
   getConnection() {
     return this.connection;
@@ -27,6 +29,7 @@ class MySqlDriver implements IDBDriver {
       password: this.password,
       database: this.database,
       port: this.port,
+      multipleStatements: this.multipleStatements,
     });
   }
 
