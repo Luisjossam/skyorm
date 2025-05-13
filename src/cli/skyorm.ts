@@ -41,6 +41,9 @@ switch (command) {
   case "migrate:fresh":
     require("./commands/migrate_fresh")(rest);
     break;
+  case "create:model":
+    require("./commands/model_create")(rest);
+    break;
   default:
     console.error(`Unknown command: ${command}`);
     process.exit(1);
